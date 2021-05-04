@@ -17,6 +17,7 @@ export class CSPBuilderPanel {
 	//
 	private _wsInfo: Array<CSPWorkspaceInfo>;
 	private _nonce: string;
+	private _taskIsActive: boolean;
 	// 
 	private _webViewHtmlHeader?: string;
 	private _webViewHtmlCommonInfo?: string;
@@ -59,6 +60,7 @@ export class CSPBuilderPanel {
 		this._panel = panel;
 		this._extensionUri = extensionUri;
 		this._wsInfo = [];
+		this._taskIsActive = false;
 		this._outputChannel = vscode.window.createOutputChannel("CS+Builder");
 		this._outputChannel.show();
 		// WebView Init
@@ -87,6 +89,12 @@ export class CSPBuilderPanel {
 						break;
 					case 'onClickButtonReBuild':
 						this._onClickButtonReBuild(message.prjId, message.buildModeId);
+						break;
+					case 'onClickButtonRelease':
+						this._onClickButtonRelease();
+						break;
+					default:
+						vscode.window.showInformationMessage('Unknown event fired..');
 						break;
 				}
 			},
@@ -121,19 +129,94 @@ export class CSPBuilderPanel {
 	}
 
 	private async _onClickButtonBuild(prjId: number, buildModeId: number) {
-		// BuildModeInfo取得
-		const prjInfo = this._wsInfo[0].projInfos[prjId];
-		//
-		prjInfo.build(buildModeId, this._outputChannel);
+		// ビルドタスクは1つだけ許可する
+		if (this._taskIsActive) {
+			vscode.window.showInformationMessage('Now Building!');
+		} else {
+			this._taskIsActive = true;
+			await this._build(prjId, buildModeId);
+			this._taskIsActive = false;
+		}
 	}
 
 	private async _onClickButtonReBuild(prjId: number, buildModeId: number) {
-		// BuildModeInfo取得
-		const prjInfo = this._wsInfo[0].projInfos[prjId];
-		//
-		prjInfo.rebuild(buildModeId, this._outputChannel);
+		// ビルドタスクは1つだけ許可する
+		if (this._taskIsActive) {
+			vscode.window.showInformationMessage('Now Building!');
+		} else {
+			this._taskIsActive = true;
+			await this._rebuild(prjId, buildModeId);
+			this._taskIsActive = false;
+		}
 	}
 
+	private async _onClickButtonRelease() {
+		// ビルドタスクは1つだけ許可する
+		if (this._taskIsActive) {
+			//vscode.window.setStatusBarMessage('Now Building!', 5000);
+			vscode.window.showInformationMessage('Now Building!');
+		} else {
+			this._taskIsActive = true;
+			// プロジェクトファイルを全部チェック
+			const prjInfos = this._wsInfo[0].projInfos;
+			for (let prjId = 0; prjId < prjInfos.length; prjId++) {
+				const prjInfo = prjInfos[prjId];
+				// BuildModeを全部チェック
+				for (let buildModeId = 0; buildModeId < prjInfo.buildModes.length; buildModeId++) {
+					const buildModeInfo = prjInfo.buildModes[buildModeId];
+					if (buildModeInfo.enable) {
+						// 有効であればビルド実行
+						await this._release(prjId, buildModeId);
+					}
+				}
+			}
+			this._taskIsActive = false;
+		}
+	}
+
+
+
+	private async _build(prjId: number, buildModeId: number) {
+		// BuildModeInfo取得
+		const prjInfo = this._wsInfo[0].projInfos[prjId];
+		// ビルドタスク実行
+		try {
+			await prjInfo.build(buildModeId, this._outputChannel);
+		} catch (e) {
+			// 異常時
+			this._outputChannel.appendLine("Build task terminated: " + e);
+		} finally {
+			// nothing
+		}
+	}
+
+	private async _rebuild(prjId: number, buildModeId: number) {
+		// BuildModeInfo取得
+		const prjInfo = this._wsInfo[0].projInfos[prjId];
+		// ビルドタスク実行
+		try {
+			await prjInfo.rebuild(buildModeId, this._outputChannel);
+		} catch (e) {
+			// 異常時
+			this._outputChannel.appendLine("ReBuild task terminated: " + e);
+		} finally {
+			// nothing
+		}
+	}
+
+	private async _release(prjId: number, buildModeId: number) {
+		// BuildModeInfo取得
+		const prjInfo = this._wsInfo[0].projInfos[prjId];
+		// ビルドタスク実行
+		try {
+			await prjInfo.build(buildModeId, this._outputChannel);
+		} catch (e) {
+			// 異常時
+			this._outputChannel.appendLine("Build task terminated: " + e);
+		} finally {
+			// nothing
+		}
+	}
 
 
 	private async _update() {
@@ -236,7 +319,7 @@ export class CSPBuilderPanel {
 					CS+ Builder
 				</div>
 				<div class="tool">
-					<button type="button">ALL BUILD</button>
+					<button type="button" class="release-button">RELEASE</button>
 				</div>
 			</div>
 			<h2>Project Common Info</h2>
@@ -416,57 +499,118 @@ class ProjInfo {
 		await this._loadRcpeFile();
 	}
 
-	public build(buildModeId: number, outputChannel:vscode.OutputChannel) {
-		if (this.enable) {
-			this._build(buildModeId, "/bb", outputChannel);
-		}
-	}
-
-	public rebuild(buildModeId: number, outputChannel: vscode.OutputChannel) {
-		if (this.enable) {
-			this._build(buildModeId, "/br", outputChannel);
-		}
-	}
-
-	private _build(buildModeId: number, buildOpt: string, outputChannel: vscode.OutputChannel) {
-		const buildMode = this.buildModes[buildModeId];
-		const cspExePath = config.cspExePath.replace(/\\/g, "\\\\");
-		const prjFilePath = this.projFilePath.fsPath.replace(/\\/g, "\\\\");
-		const cmmand = `"${cspExePath}" ${buildOpt} "${buildMode.id}" "${prjFilePath}"`;
-		//
-		outputChannel.appendLine("Build Start: " + cmmand);
-		//
-		const proc = child_process.spawn(cspExePath, [buildOpt, buildMode.id, prjFilePath]);
-		proc.stdout.on("data", (log) => {
-			outputChannel.append(iconv.decode(log, "sjis"));
-		});
-		proc.stderr.on("data", (log) => {
-			outputChannel.append(iconv.decode(log, "sjis"));
-		});
-		// 途中終了:exit
-		// 終了イベント
-		proc.on("close", (exitCode) => {
-			if (exitCode === 0) {
-				outputChannel.appendLine("");
-				outputChannel.appendLine("Build Success!");
-			} else {
-				outputChannel.appendLine("");
-				outputChannel.appendLine("Build Failed!");
+	public building(buildModeId: number = -1): boolean {
+		if (buildModeId === -1) {
+			let result = true;
+			for (let buildMode of this.buildModes) {
+				if (buildMode.building) {
+					result = false;
+					break;
+				}
 			}
+			return result;
+		} else {
+			const buildMode = this.buildModes[buildModeId];
+			return buildMode.building;
+		}
+	}
+
+	public async build(buildModeId: number, outputChannel:vscode.OutputChannel) {
+		if (this.enable) {
+			this.buildModes[buildModeId].building = true;
+			await this._build(buildModeId, "/bb", outputChannel);
+		} else {
+			throw new Error("This Project is disabled!");
+		}
+	}
+
+	public async rebuild(buildModeId: number, outputChannel: vscode.OutputChannel) {
+		if (this.enable) {
+			this.buildModes[buildModeId].building = true;
+			await this._build(buildModeId, "/br", outputChannel);
+		} else {
+			throw new Error("This Project is disabled!");
+		}
+	}
+
+	private _build(buildModeId: number, buildOpt: string, outputChannel: vscode.OutputChannel): Promise<void> {
+		return new Promise((resolve) => {
+			const buildMode = this.buildModes[buildModeId];
+			const cspExePath = config.cspExePath.replace(/\\/g, "\\\\");
+			const prjFilePath = this.projFilePath.fsPath.replace(/\\/g, "\\\\");
+			const cmmand = `"${cspExePath}" ${buildOpt} "${buildMode.id}" "${prjFilePath}"`;
+			//
+			outputChannel.appendLine("Build Start: " + cmmand);
+			//
+			const proc = child_process.spawn(cspExePath, [buildOpt, buildMode.id, prjFilePath]);
+			proc.stdout.on("data", (log) => {
+				outputChannel.append(iconv.decode(log, "sjis"));
+			});
+			proc.stderr.on("data", (log) => {
+				outputChannel.append(iconv.decode(log, "sjis"));
+			});
+			// 途中終了:exit
+			/*
+			proc.on("exit", (code) => {
+				outputChannel.appendLine("");
+				outputChannel.appendLine("Build Treminated?");
+			});
+			*/
+			// 終了イベント
+			proc.on("close", (exitCode) => {
+				if (exitCode === 0) {
+					outputChannel.appendLine("");
+					outputChannel.appendLine("Build Success!");
+				} else {
+					outputChannel.appendLine("");
+					outputChannel.appendLine("Build Failed!");
+				}
+				resolve();
+				buildMode.building = false;
+			});
 		});
 	}
 
 	private async _loadRcpeFile() {
 		if (this.enable) {
+			// rcpeをjson形式に変換
 			const xml = await vscode.workspace.openTextDocument(this.rcpeFilePath);
 			const json = await xml2js.parseStringPromise(xml.getText());
-
+			// Project情報
+			const projectName = json.MicomToolCommonProjectFile.Project[0].$["Name"];
 			// BuildModeをすべてチェック
-			const buildOpt = json.MicomToolCommonProjectFile.Project[0].BuildOptions[0];
-			for (let i = 0; i < buildOpt.BuildMode.length; i++) {
-				const buildMode = buildOpt.BuildMode[i];
-				const buildModeName = buildMode.$["Name"];
-				this.buildModes.push(new BuildModeInfo(buildModeName));
+			const jsonBuildOpt = json.MicomToolCommonProjectFile.Project[0].BuildOptions[0];
+			for (let i = 0; i < jsonBuildOpt.BuildMode.length; i++) {
+				// BuildModeInfo作成
+				const jsonBuildMode = jsonBuildOpt.BuildMode[i];
+				const buildModeName = jsonBuildMode.$["Name"];
+				const buildModeInfo = new BuildModeInfo(buildModeName);
+				buildModeInfo.projectName = projectName;
+				this._analyzeJsonLinkOptions(buildModeInfo, jsonBuildMode.LinkOptions[0]);
+				// BuildModeInfo登録
+				this.buildModes.push(buildModeInfo);
+			}
+		}
+	}
+
+	private _analyzeJsonLinkOptions(buildModeInfo: BuildModeInfo, jsonLinkOptions: any) {
+		// LinkOptionsを解析して情報を抽出する
+		for (let i = 0; i < jsonLinkOptions.Option.length; i++) {
+			const option: string = jsonLinkOptions.Option[i];
+			let match: RegExpMatchArray | null;
+			// absファイル
+			match = option.match(/\-OUtput=((?:[^\\]+\\)*)(.+\.abs)/);
+			if (match) {
+				const dir = match[1];
+				const file = match[2];
+				buildModeInfo.absFile = dir + file;
+			}
+			// hex/motファイル
+			match = option.match(/\-OUtput=((?:[^\\]+\\)*)(.+\.(?:hex|mot))/);
+			if (match) {
+				const dir = match[1];
+				const file = match[2];
+				buildModeInfo.hexFile = dir + file;
 			}
 		}
 	}
@@ -508,9 +652,17 @@ class ProjInfo {
 
 class BuildModeInfo {
 	public enable: boolean;
+	public building: boolean;
+	public projectName: string;
+	public absFile: string;
+	public hexFile: string;
 
 	constructor(public id: string) {
 		this.enable = true;
+		this.building = false;
+		this.projectName = "";
+		this.absFile = "";
+		this.hexFile = "";
 	}
 }
 

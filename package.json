@@ -1,5 +1,6 @@
 {
 	"name": "cspbuilder",
+	"publisher": "hoge",
 	"displayName": "CS+Builder",
 	"description": "",
 	"version": "0.0.1",

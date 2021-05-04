@@ -20,6 +20,11 @@
 			onClickButtonReBuild(e);
 		});
 	});
+	document.querySelectorAll('.release-button').forEach((elem) => {
+		elem.addEventListener('click', (e) => {
+			onClickButtonRelease(e);
+		});
+	});
 
 	function onClickCheckBuidModeTgt(e) {
 		let state = false;
@@ -56,6 +61,13 @@
 			command: 'onClickButtonReBuild',
 			prjId: prjId,
 			buildModeId: buildModeId
+		});
+	}
+
+	function onClickButtonRelease(e) {
+		let elem = e.currentTarget;
+		vscode.postMessage({
+			command: 'onClickButtonRelease'
 		});
 	}
 

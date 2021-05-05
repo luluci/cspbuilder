@@ -1,5 +1,3 @@
-
-
 // This script will be run within the webview itself
 // It cannot access the main VS Code APIs directly.
 (function () {
@@ -7,69 +5,65 @@
 
 	document.querySelectorAll('.build-tgt-checkbox').forEach((elem)=>{
 		elem.addEventListener('click', (e) => {
-			onClickCheckBuidModeTgt(e);
+			let state = false;
+			let elem = e.currentTarget;
+			let prjId = elem.dataset.prj_id;
+			let buildModeId = elem.dataset.buildmode_id;
+			if (elem) {
+				state = elem.checked;
+			}
+			vscode.postMessage({
+				command: 'onClickCheckBuidModeTgt',
+				prjId: prjId,
+				buildModeId: buildModeId,
+				state: state
+			});
 		});
 	});
 	document.querySelectorAll('.build-button').forEach((elem) => {
 		elem.addEventListener('click', (e) => {
-			onClickButtonBuild(e);
+			let elem = e.currentTarget;
+			let prjId = elem.dataset.prj_id;
+			let buildModeId = elem.dataset.buildmode_id;
+			vscode.postMessage({
+				command: 'onClickButtonBuild',
+				prjId: prjId,
+				buildModeId: buildModeId
+			});
 		});
 	});
 	document.querySelectorAll('.rebuild-button').forEach((elem) => {
 		elem.addEventListener('click', (e) => {
-			onClickButtonReBuild(e);
+			let elem = e.currentTarget;
+			let prjId = elem.dataset.prj_id;
+			let buildModeId = elem.dataset.buildmode_id;
+			vscode.postMessage({
+				command: 'onClickButtonReBuild',
+				prjId: prjId,
+				buildModeId: buildModeId
+			});
 		});
 	});
 	document.querySelectorAll('.release-button').forEach((elem) => {
 		elem.addEventListener('click', (e) => {
-			onClickButtonRelease(e);
+			vscode.postMessage({
+				command: 'onClickButtonRelease'
+			});
+		});
+	});
+	document.querySelectorAll('.data-input-common').forEach((elem) => {
+		elem.addEventListener('input', (e) => {
+			const elem = e.currentTarget;
+			const inputType = elem.dataset.type;
+			const value = elem.value;
+			vscode.postMessage({
+				command: 'onInputCommon',
+				type: inputType,
+				value: value
+			});
 		});
 	});
 
-	function onClickCheckBuidModeTgt(e) {
-		let state = false;
-		let elem = e.currentTarget;
-		let prjId = elem.dataset.prj_id;
-		let buildModeId = elem.dataset.buildmode_id;
-		if (elem) {
-			state = elem.checked;
-		}
-		vscode.postMessage({
-			command: 'onClickCheckBuidModeTgt',
-			prjId: prjId,
-			buildModeId: buildModeId,
-			state: state
-		});
-	}
-
-	function onClickButtonBuild(e) {
-		let elem = e.currentTarget;
-		let prjId = elem.dataset.prj_id;
-		let buildModeId = elem.dataset.buildmode_id;
-		vscode.postMessage({
-			command: 'onClickButtonBuild',
-			prjId: prjId,
-			buildModeId: buildModeId
-		});
-	}
-
-	function onClickButtonReBuild(e) {
-		let elem = e.currentTarget;
-		let prjId = elem.dataset.prj_id;
-		let buildModeId = elem.dataset.buildmode_id;
-		vscode.postMessage({
-			command: 'onClickButtonReBuild',
-			prjId: prjId,
-			buildModeId: buildModeId
-		});
-	}
-
-	function onClickButtonRelease(e) {
-		let elem = e.currentTarget;
-		vscode.postMessage({
-			command: 'onClickButtonRelease'
-		});
-	}
 
 	/*
 	const oldState = vscode.getState();

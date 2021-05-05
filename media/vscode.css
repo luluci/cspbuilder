@@ -123,6 +123,7 @@ table tbody tr td.property {
 }
 table tbody tr td.data {
 	width: 500px;
+	font-family: var(--vscode-editor-font-family);
 }
 
 
@@ -181,4 +182,10 @@ div.build_mode_container div.right_item {
 div.build_mode_container div.right_item button {
 	width: 80%;
 	margin: 5px 10px 5px 10px;
+}
+
+input.data-input-common {
+	font-family: var(--vscode-editor-font-family);
+	padding: 2px 7px;
+	width: 80%;
 }

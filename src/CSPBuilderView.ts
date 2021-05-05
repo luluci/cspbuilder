@@ -93,6 +93,9 @@ export class CSPBuilderPanel {
 					case 'onClickButtonRelease':
 						this._onClickButtonRelease();
 						break;
+					case 'onInputCommon':
+						this._onInputCommon(message.type, message.value);
+						break;
 					default:
 						vscode.window.showInformationMessage('Unknown event fired..');
 						break;
@@ -171,6 +174,22 @@ export class CSPBuilderPanel {
 				}
 			}
 			this._taskIsActive = false;
+		}
+	}
+
+	/** プロジェクト共通情報inputハンドラ
+	 * 
+	 * @param type 
+	 * @param value 
+	 */
+	private _onInputCommon(type: string, value: string) {
+		// workspace取得
+		const wsInfo = this._wsInfo[0];
+		//
+		switch (type) {
+			case 'version':
+				wsInfo.version(value);
+				break;
 		}
 	}
 
@@ -374,6 +393,12 @@ export class CSPBuilderPanel {
 						<td class="property">Project Dir</td>
 						<td class="data">${wsInfo.rootPath.path}</td>
 					</tr>
+					<tr>
+						<td class="property">Version</td>
+						<td class="data">
+							<input type="text" class="data-input-common" data-type="version" />
+						</td>
+					</tr>
 				</tbody>
 			</table>
 			`;
@@ -392,6 +417,10 @@ export class CSPBuilderPanel {
 				const prjInfo = wsInfo.projInfos[prjId];
 				const prjFileName = prjInfo.projFileName;
 				// プロジェクトファイルの情報整理
+				let romArea = "<no setting>";
+				if (prjInfo.micomROMArea) {
+					romArea = toHex(prjInfo.micomROMArea.begin, 8) + ":" + toHex(prjInfo.micomROMArea.end, 8);
+				}
 				// プロジェクトファイルキャプション
 				this._webViewHtmlProjFileInfo += `<h3>${prjFileName}</h3>`;
 				// BuildMode毎のhtml生成
@@ -418,8 +447,8 @@ export class CSPBuilderPanel {
 											<td class="data">${buildMode.id}</td>
 										</tr>
 										<tr>
-											<td class="property">ROMRAMサイズ</td>
-											<td class="data"></td>
+											<td class="property">ROM Area</td>
+											<td class="data">${romArea}</td>
 										</tr>
 										<tr>
 											<td class="property">情報1</td>
@@ -454,10 +483,19 @@ export class CSPBuilderPanel {
 }
 
 class CSPWorkspaceInfo {
+	// プロジェクトファイル情報リスト(複数ファイルを想定)
 	public projInfos: Array<ProjInfo>;
+	// プロジェクト共通情報
+	private _version: string;
 
 	constructor(public rootPath: vscode.Uri) {
 		this.projInfos = [];
+		this._version = "";
+	}
+
+	public version(value: string) {
+		// 必要に応じて整形処理を入れる
+		this._version = value;
 	}
 
 	public async analyze(outputChannel: vscode.OutputChannel) {
@@ -483,6 +521,11 @@ class ProjInfo {
 	public rcpeFilePath: vscode.Uri;
 	public enable: boolean;
 	public buildModes: Array<BuildModeInfo>;
+	// プロジェクト情報
+	private _projectName: string;
+	public micomSeries: string;
+	public micomDevice: string;
+	public micomROMArea?: RomArea;
 
 	constructor(public projFilePath: vscode.Uri) {
 		this.projFileName = posix.basename(projFilePath.path);
@@ -492,6 +535,9 @@ class ProjInfo {
 		this.rcpeFilePath = vscode.Uri.parse(rcpeFile);
 		this.buildModes = [];
 		this.enable = false;
+		this._projectName = "";
+		this.micomSeries = "";
+		this.micomDevice = "";
 	}
 
 	public async analyze(outputChannel: vscode.OutputChannel) {
@@ -576,16 +622,21 @@ class ProjInfo {
 			// rcpeをjson形式に変換
 			const xml = await vscode.workspace.openTextDocument(this.rcpeFilePath);
 			const json = await xml2js.parseStringPromise(xml.getText());
+			// 共通情報取得
 			// Project情報
-			const projectName = json.MicomToolCommonProjectFile.Project[0].$["Name"];
-			// BuildModeをすべてチェック
+			this._projectName = json.MicomToolCommonProjectFile.Project[0].$["Name"];
+			const jsonDevice = json.MicomToolCommonProjectFile.Project[0].Device[0];
+			this.micomSeries = jsonDevice.$["Series"];
+			this.micomDevice = jsonDevice._;
+			this.micomROMArea = config.getRomArea(this.micomSeries, this.micomDevice);
+			// BuildMode個別情報取得
 			const jsonBuildOpt = json.MicomToolCommonProjectFile.Project[0].BuildOptions[0];
 			for (let i = 0; i < jsonBuildOpt.BuildMode.length; i++) {
 				// BuildModeInfo作成
 				const jsonBuildMode = jsonBuildOpt.BuildMode[i];
 				const buildModeName = jsonBuildMode.$["Name"];
 				const buildModeInfo = new BuildModeInfo(buildModeName);
-				buildModeInfo.projectName = projectName;
+				buildModeInfo.projectName = this._projectName;
 				this._analyzeJsonLinkOptions(buildModeInfo, jsonBuildMode.LinkOptions[0]);
 				// BuildModeInfo登録
 				this.buildModes.push(buildModeInfo);
@@ -675,13 +726,77 @@ function getNonce() {
 	return text;
 }
 
-class Configuration {
-	public cspExePath: string;
+function toHex(value:number, len:number): string {
+	return ("0000000000000000" + value.toString(16).toUpperCase()).slice(-len);
+}
+
+class RomArea {
+	public begin: number;
+	public end: number;
 
 	constructor() {
-		//
-		const conf = vscode.workspace.getConfiguration('cspBuilder');
-		this.cspExePath = conf.csplus.path;
+		this.begin = 0;
+		this.end = 0;
 	}
 }
-let config = new Configuration();
+
+class Configuration {
+	
+	public cspExePath: string;
+	public romArea: Map<string, Map<string, RomArea>>;
+
+	constructor() {
+		// 拡張機能Configuration取得
+		const conf = vscode.workspace.getConfiguration('cspBuilder');
+		// CS+パス
+		this.cspExePath = conf.csplus.path;
+		// ROMエリア定義
+		this.romArea = new Map<string, Map<string, RomArea>>();
+		const confROMArea = conf.Micom.ROMArea;
+		for (const key of Reflect.ownKeys(confROMArea)) {
+			const valueAsHex = confROMArea[key];
+			const [series, device, area] = key.toString().split(".");
+			// valueチェック
+			let value = parseInt(valueAsHex, 16);
+			if (!isNaN(value)) {
+				// valueが無効値の場合はスキップ
+				// seriesチェック
+				let mapSeries = this.romArea.get(series);
+				if (mapSeries === undefined) {
+					this.romArea.set(series, new Map<string, RomArea>());
+					mapSeries = this.romArea.get(series);
+				}
+				// deviceチェック
+				let mapDevice = mapSeries!.get(device);
+				if (mapDevice === undefined) {
+					mapSeries!.set(device, new RomArea());
+					mapDevice = mapSeries!.get(device);
+				}
+				// areaチェック
+				switch (area) {
+					case "begin":
+						mapDevice!.begin = value;
+						break;
+					case "end":
+						mapDevice!.end = value;
+						break;
+				}
+			}
+		}
+	}
+
+	public getRomArea(series:string, device:string): RomArea|undefined {
+		let result: RomArea | undefined = undefined;
+		// seriesチェック
+		let mapSeries = this.romArea.get(series);
+		if (mapSeries) {
+			// deviceチェック
+			let mapDevice = mapSeries!.get(device);
+			if (mapDevice) {
+				result = mapDevice;
+			}
+		}
+		return result;
+	}
+}
+const config = new Configuration();

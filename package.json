@@ -29,14 +29,14 @@
 					"cspBuilder.Micom.ROMArea": {
 						"type": "object",
 						"default": {
-							"RL78.R5F101SL.begin": "0x0000",
-							"RL78.R5F101SL.end": "0x7FFF"
+							"R5F101SL.begin": "0x0000",
+							"R5F101SL.end": "0x7FFF"
 						},
 						"properties": {
-							"RL78.R5F101SL.begin": {
+							"R5F101SL.begin": {
 								"type": "string"
 							},
-							"RL78.R5F101SL.end": {
+							"R5F101SL.end": {
 								"type": "string"
 							}
 						}

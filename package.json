@@ -24,7 +24,12 @@
 					"cspBuilder.csplus.path": {
 						"type": "string",
 						"default": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\CubeSuite+.exe",
-						"description": "Path to CubeSuite+.exe"
+						"description": "CubeSuite+.exe へのパスを設定"
+					},
+					"cspBuilder.BuildMode.DefaultDeactive": {
+						"type": "string",
+						"default": "DefaultBuild",
+						"description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
 					},
 					"cspBuilder.Micom.ROMArea": {
 						"type": "object",

@@ -201,6 +201,11 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.build(buildModeId, this._outputChannel);
+			this.postMsgForWebView({
+				command: "BuildSuccess",
+				projectId: prjId,
+				buildModeId: buildModeId
+			});
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);
@@ -215,6 +220,11 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
+			this.postMsgForWebView({
+				command: "BuildSuccess",
+				projectId: prjId,
+				buildModeId: buildModeId
+			});
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("ReBuild task terminated: " + e);
@@ -228,7 +238,12 @@ export class CSPBuilderPanel {
 		const prjInfo = this._wsInfo[0].projInfos[prjId];
 		// ビルドタスク実行
 		try {
-			await prjInfo.build(buildModeId, this._outputChannel);
+			await prjInfo.rebuild(buildModeId, this._outputChannel);
+			this.postMsgForWebView({
+				command: "BuildSuccess",
+				projectId: prjId,
+				buildModeId: buildModeId
+			});
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);
@@ -428,10 +443,16 @@ export class CSPBuilderPanel {
 					for (let buildModeId = 0; buildModeId < prjInfo.buildModes.length; buildModeId++) {
 						const buildMode = prjInfo.buildModes[buildModeId];
 						const buildId = prjId + "_" + buildModeId;
+						// check設定
+						let checked = 'checked="checked"';
+						if (config.defaultDeactive.includes(buildMode.buildMode)) {
+							checked = '';
+						}
+						// html生成
 						this._webViewHtmlProjFileInfo += `
 						<div class="build_mode_container">
 							<div class="left_item">
-								<input type="checkbox" class="build-tgt-checkbox" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" checked="checked">
+								<input type="checkbox" class="build-tgt-checkbox" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
 							</div>
 							<div class="main_item">
 								<table>
@@ -443,8 +464,14 @@ export class CSPBuilderPanel {
 									</thead>
 									<tbody>
 										<tr>
+											<td class="property">BuildStatus</td>
+											<td class="data"><span class="BuildStatus" id="${buildMode.htmlIdBuildStatus}">
+												<span>${buildMode.buildStatus}</span>
+											</span></td>
+										</tr>
+										<tr>
 											<td class="property">BuildMode</td>
-											<td class="data">${buildMode.id}</td>
+											<td class="data">${buildMode.buildMode}</td>
 										</tr>
 										<tr>
 											<td class="property">ROM Area</td>
@@ -472,12 +499,15 @@ export class CSPBuilderPanel {
 					// BuildModeが無いとき
 					this._webViewHtmlProjFileInfo += `
 						<p>BuildMode Info not found!</p>
-						<p>たぶん、rcpeファイルが無いよ！</p>
 					`;
 				}
 			}
 		}
 		return this._webViewHtmlProjFileInfo;
+	}
+
+	private postMsgForWebView(message: any) {
+		this._panel.webview.postMessage(message);
 	}
 
 }
@@ -499,6 +529,8 @@ class CSPWorkspaceInfo {
 	}
 
 	public async analyze(outputChannel: vscode.OutputChannel) {
+		// ProjectID
+		let projId: number = 0;
 		// ディレクトリ探索
 		for (const [name, type] of await vscode.workspace.fs.readDirectory(this.rootPath)) {
 			// rootディレクトリ内のファイルだけチェック
@@ -507,7 +539,7 @@ class CSPWorkspaceInfo {
 				const ext = posix.extname(name);
 				if (ext === '.mtpj') {
 					const fileUri = vscode.Uri.parse(posix.join(this.rootPath.path, name));
-					const inf = new ProjInfo(fileUri);
+					const inf = new ProjInfo(projId, fileUri);
 					await inf.analyze(outputChannel);
 					this.projInfos.push(inf);
 				}
@@ -527,7 +559,7 @@ class ProjInfo {
 	public micomDevice: string;
 	public micomDeviceInfo?: DeviceInfo;
 
-	constructor(public projFilePath: vscode.Uri) {
+	constructor(public id: number, public projFilePath: vscode.Uri) {
 		this.projFileName = posix.basename(projFilePath.path);
 		const dir = posix.dirname(projFilePath.path);
 		const file = posix.basename(projFilePath.path, ".mtpj") + ".rcpe";
@@ -585,11 +617,11 @@ class ProjInfo {
 			const buildMode = this.buildModes[buildModeId];
 			const cspExePath = config.cspExePath.replace(/\\/g, "\\\\");
 			const prjFilePath = this.projFilePath.fsPath.replace(/\\/g, "\\\\");
-			const cmmand = `"${cspExePath}" ${buildOpt} "${buildMode.id}" "${prjFilePath}"`;
+			const cmmand = `"${cspExePath}" ${buildOpt} "${buildMode.buildMode}" "${prjFilePath}"`;
 			//
 			outputChannel.appendLine("Build Start: " + cmmand);
 			//
-			const proc = child_process.spawn(cspExePath, [buildOpt, buildMode.id, prjFilePath]);
+			const proc = child_process.spawn(cspExePath, [buildOpt, buildMode.buildMode, prjFilePath]);
 			proc.stdout.on("data", (log) => {
 				outputChannel.append(iconv.decode(log, "sjis"));
 			});
@@ -648,7 +680,7 @@ class ProjInfo {
 						if (buildModeTag in instance) {
 							const buildModeStr = instance[buildModeTag][0];
 							const buildMode = Buffer.from(buildModeStr, 'base64').toString('utf16le');
-							const buildModeInfo = new BuildModeInfo(buildMode);
+							const buildModeInfo = new BuildModeInfo(this.id, buildModeId, buildMode);
 							buildModeInfo.projectName = this._projectName;
 							// BuildModeInfo登録
 							this.buildModes.push(buildModeInfo);
@@ -666,13 +698,19 @@ class BuildModeInfo {
 	public projectName: string;
 	public absFile: string;
 	public hexFile: string;
+	// ビルド情報
+	public buildStatus: string;
+	public htmlIdBuildStatus: string;
 
-	constructor(public id: string) {
+	constructor(public projId: number, public buildModeId: number, public buildMode: string) {
 		this.enable = true;
 		this.building = false;
 		this.projectName = "";
 		this.absFile = "";
 		this.hexFile = "";
+		//
+		this.buildStatus = "<未ビルド>";
+		this.htmlIdBuildStatus = `BuildStatus_${this.projId}_${this.buildModeId}`;
 	}
 }
 
@@ -702,6 +740,7 @@ class DeviceInfo {
 class Configuration {
 	
 	public cspExePath: string;
+	public defaultDeactive: Array<string>;
 	public romArea: Map<string, DeviceInfo>;
 
 	constructor() {
@@ -709,6 +748,8 @@ class Configuration {
 		const conf = vscode.workspace.getConfiguration('cspBuilder');
 		// CS+パス
 		this.cspExePath = conf.csplus.path;
+		// DefaultDeactive設定
+		this.defaultDeactive = this.commaSeqToArray(conf.BuildMode.DefaultDeactive);
 		// ROMエリア定義
 		this.romArea = new Map<string, DeviceInfo>();
 		const confROMArea = conf.Micom.ROMArea;
@@ -744,6 +785,38 @@ class Configuration {
 		let deviceInfo = this.romArea.get(device);
 		if (deviceInfo) {
 			result = deviceInfo;
+		}
+		return result;
+	}
+
+	private commaSeqToArray(org: string) {
+		let result: Array<string> = [];
+		let reSep = /(["'])/;
+		//
+		while (org !== "") {
+			// 空白スキップ
+			let temp = org.trim();
+			// 先頭文字チェック
+			let posBegin = 0;
+			let posOffset = 0;
+			let ch = temp.charAt(posBegin);
+			let reMatch = ch.match(reSep);
+			let sep = ",";
+			if (reMatch) {
+				posBegin = 1;
+				posOffset = 1;
+				sep = reMatch[0];
+			}
+			// 区切り文字の位置を探す
+			let posEnd = temp.indexOf(sep, posBegin);
+			if (posEnd === -1) {
+				posEnd = temp.length;
+			}
+			// 先頭データ分割
+			let token = temp.slice(posBegin, posEnd).trim();
+			result.push(token);
+			// 次文字列作成
+			org = temp.slice(posEnd + 1 + posOffset);
 		}
 		return result;
 	}

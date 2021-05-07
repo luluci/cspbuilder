@@ -64,6 +64,26 @@
 		});
 	});
 
+	// Handle messages sent from the extension to the webview
+	window.addEventListener('message', event => {
+		const message = event.data; // The json data that the extension sent
+		switch (message.command) {
+			case 'BuildSuccess':
+				buildSuccess(message);
+				break;
+		}
+	});
+
+
+	function buildSuccess(message) {
+		const buildStatusId = `BuildStatus_${message.projectId}_${message.buildModeId}`;
+		const buildStatus = document.getElementById(buildStatusId);
+		const currElem = buildStatus.querySelector("span");
+		const newElem = document.createElement("span");
+		newElem.className = "BuildSuccess";
+		newElem.textContent = "Success";
+		buildStatus.replaceChild(newElem, currElem);
+	}
 
 	/*
 	const oldState = vscode.getState();
@@ -89,15 +109,5 @@
 		}
 	}, 100);
 
-	// Handle messages sent from the extension to the webview
-	window.addEventListener('message', event => {
-		const message = event.data; // The json data that the extension sent
-		switch (message.command) {
-			case 'refactor':
-				currentCount = Math.ceil(currentCount * 0.5);
-				counter.textContent = currentCount;
-				break;
-		}
-	});
 	*/
 }());

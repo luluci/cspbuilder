@@ -111,19 +111,31 @@ table tbody tr td {
 	border-bottom: 1px solid slategray;
 }
 table thead tr th.property {
-	width: 200px;
+	width: 100px;
 	/*border: 1px solid snow;*/
 }
 table thead tr th.data {
-	width: 500px;
+	width: 400px;
 }
 table tbody tr td.property {
-	width: 200px;
+	width: 100px;
 	color: var(--vscode-textPreformat-foreground);
 }
 table tbody tr td.data {
-	width: 500px;
+	width: 400px;
 	font-family: var(--vscode-editor-font-family);
+}
+
+table.build-status {
+	margin: 0 10px;
+}
+table.build-status tr th.property,
+table.build-status tr td.property  {
+	width: 100px;
+}
+table.build-status tr th.data,
+table.build-status tr td.data  {
+	width: 150px;
 }
 
 
@@ -166,20 +178,23 @@ div.build_mode_container {
 	margin: 10px 10px 20px 20px;
 	border-top: 2px solid var(--vscode-panel-border);
 }
-div.build_mode_container div.main_item {
+div.build_mode_container div.build-status {
 	width: auto;
 }
-div.build_mode_container div.left_item {
+div.build_mode_container div.build-info {
+	width: auto;
+}
+div.build_mode_container div.build-tgt {
 	text-align: center;
 	padding: 10px 0 0 0;
 	width: auto;
 }
-div.build_mode_container div.right_item {
+div.build_mode_container div.build-ope {
 	text-align: center;
 	padding: 10px 0 0 0;
 	width: 100px;
 }
-div.build_mode_container div.right_item button {
+div.build_mode_container div.build-ope button {
 	width: 80%;
 	margin: 5px 10px 5px 10px;
 }
@@ -193,4 +208,7 @@ input.data-input-common {
 
 span.BuildSuccess {
 	color:springgreen;
+}
+span.BuildFailed {
+	color:tomato;
 }

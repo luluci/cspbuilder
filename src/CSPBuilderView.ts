@@ -126,7 +126,7 @@ export class CSPBuilderPanel {
 
 	private _onClickCheckBuidModeTgt(prjId: number, buildModeId: number, state: boolean) {
 		// BuildModeInfo取得
-		const buildModeInfo = this._wsInfo[0].projInfos[prjId].buildModes[buildModeId];
+		const buildModeInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
 		// 有効無効切り替え
 		buildModeInfo.enable = state;
 	}
@@ -165,8 +165,8 @@ export class CSPBuilderPanel {
 			for (let prjId = 0; prjId < prjInfos.length; prjId++) {
 				const prjInfo = prjInfos[prjId];
 				// BuildModeを全部チェック
-				for (let buildModeId = 0; buildModeId < prjInfo.buildModes.length; buildModeId++) {
-					const buildModeInfo = prjInfo.buildModes[buildModeId];
+				for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
+					const buildModeInfo = prjInfo.buildModeInfos[buildModeId];
 					if (buildModeInfo.enable) {
 						// 有効であればビルド実行
 						await this._release(prjId, buildModeId);
@@ -201,11 +201,7 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.build(buildModeId, this._outputChannel);
-			this.postMsgForWebView({
-				command: "BuildSuccess",
-				projectId: prjId,
-				buildModeId: buildModeId
-			});
+			this._updateHtmlBuildFinish(prjId, buildModeId);
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);
@@ -220,11 +216,7 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			this.postMsgForWebView({
-				command: "BuildSuccess",
-				projectId: prjId,
-				buildModeId: buildModeId
-			});
+			this._updateHtmlBuildFinish(prjId, buildModeId);
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("ReBuild task terminated: " + e);
@@ -239,11 +231,7 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			this.postMsgForWebView({
-				command: "BuildSuccess",
-				projectId: prjId,
-				buildModeId: buildModeId
-			});
+			this._updateHtmlBuildFinish(prjId, buildModeId);
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);
@@ -439,9 +427,9 @@ export class CSPBuilderPanel {
 				// プロジェクトファイルキャプション
 				this._webViewHtmlProjFileInfo += `<h3>${prjFileName}</h3>`;
 				// BuildMode毎のhtml生成
-				if (prjInfo.buildModes.length > 0) {
-					for (let buildModeId = 0; buildModeId < prjInfo.buildModes.length; buildModeId++) {
-						const buildMode = prjInfo.buildModes[buildModeId];
+				if (prjInfo.buildModeInfos.length > 0) {
+					for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
+						const buildMode = prjInfo.buildModeInfos[buildModeId];
 						const buildId = prjId + "_" + buildModeId;
 						// check設定
 						let checked = 'checked="checked"';
@@ -451,10 +439,58 @@ export class CSPBuilderPanel {
 						// html生成
 						this._webViewHtmlProjFileInfo += `
 						<div class="build_mode_container">
-							<div class="left_item">
+							<div class="build-tgt">
 								<input type="checkbox" class="build-tgt-checkbox" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
 							</div>
-							<div class="main_item">
+							<div class="build-status">
+								<table class="build-status">
+									<thead>
+										<tr>
+											<th class="property">Build</th>
+											<th class="data">Status</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td class="property">Result</td>
+											<td class="data"><span class="BuildStatus" id="BuildStatus_Result_${buildId}">
+												<span>${buildMode.buildStatus}</span>
+											</span></td>
+										</tr>
+										<tr>
+											<td class="property">RAM size</td>
+											<td class="data"><span class="RamSize" id="BuildStatus_RamSize_${buildId}">
+												-
+											</span></td>
+										</tr>
+										<tr>
+											<td class="property">ROM size</td>
+											<td class="data"><span class="RomSize" id="BuildStatus_RomSize_${buildId}">
+												-
+											</span></td>
+										</tr>
+										<tr>
+											<td class="property">PROGRAM size</td>
+											<td class="data"><span class="ProgramSize" id="BuildStatus_ProgramSize_${buildId}">
+												-
+											</span></td>
+										</tr>
+										<tr>
+											<td class="property">Error Count</td>
+											<td class="data"><span class="ErrorCount" id="BuildStatus_ErrorCount_${buildId}">
+												-
+											</span></td>
+										</tr>
+										<tr>
+											<td class="property">Warning Count</td>
+											<td class="data"><span class="WarningCount" id="BuildStatus_WarningCount_${buildId}">
+												-
+											</span></td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+							<div class="build-info">
 								<table>
 									<thead>
 										<tr>
@@ -463,12 +499,6 @@ export class CSPBuilderPanel {
 										</tr>
 									</thead>
 									<tbody>
-										<tr>
-											<td class="property">BuildStatus</td>
-											<td class="data"><span class="BuildStatus" id="${buildMode.htmlIdBuildStatus}">
-												<span>${buildMode.buildStatus}</span>
-											</span></td>
-										</tr>
 										<tr>
 											<td class="property">BuildMode</td>
 											<td class="data">${buildMode.buildMode}</td>
@@ -488,7 +518,7 @@ export class CSPBuilderPanel {
 									</tbody>
 								</table>
 							</div>
-							<div class="right_item">
+							<div class="build-ope">
 								<button type="button" class="build-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">Build</button>
 								<button type="button" class="rebuild-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">ReBuild</button>
 							</div>
@@ -506,7 +536,23 @@ export class CSPBuilderPanel {
 		return this._webViewHtmlProjFileInfo;
 	}
 
-	private postMsgForWebView(message: any) {
+	private _updateHtmlBuildFinish(prjId: number, buildModeId: number) {
+		const buildInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
+		this._postMsgForWebView({
+			command: "BuildFinish",
+			projectId: prjId,
+			buildModeId: buildModeId,
+			buildStatus: buildInfo.buildStatus,
+			ramSize: buildInfo.ramSize,
+			romSize: buildInfo.romSize,
+			programSize: buildInfo.programSize,
+			errorCount: buildInfo.errorCount,
+			warningCount: buildInfo.warningCount,
+			buildDate: buildInfo.buildDate
+		});
+	}
+
+	private _postMsgForWebView(message: any) {
 		this._panel.webview.postMessage(message);
 	}
 
@@ -552,7 +598,7 @@ class ProjInfo {
 	public projFileName: string;
 	public rcpeFilePath: vscode.Uri;
 	public enable: boolean;
-	public buildModes: Array<BuildModeInfo>;
+	public buildModeInfos: Array<BuildModeInfo>;
 	// プロジェクト情報
 	private _projectName: string;
 	public micomSeries: string;
@@ -565,7 +611,7 @@ class ProjInfo {
 		const file = posix.basename(projFilePath.path, ".mtpj") + ".rcpe";
 		const rcpeFile = posix.join(dir, file);
 		this.rcpeFilePath = vscode.Uri.parse(rcpeFile);
-		this.buildModes = [];
+		this.buildModeInfos = [];
 		this.enable = true;
 		this._projectName = "";
 		this.micomSeries = "";
@@ -581,7 +627,7 @@ class ProjInfo {
 	public building(buildModeId: number = -1): boolean {
 		if (buildModeId === -1) {
 			let result = true;
-			for (let buildMode of this.buildModes) {
+			for (let buildMode of this.buildModeInfos) {
 				if (buildMode.building) {
 					result = false;
 					break;
@@ -589,14 +635,14 @@ class ProjInfo {
 			}
 			return result;
 		} else {
-			const buildMode = this.buildModes[buildModeId];
+			const buildMode = this.buildModeInfos[buildModeId];
 			return buildMode.building;
 		}
 	}
 
 	public async build(buildModeId: number, outputChannel:vscode.OutputChannel) {
 		if (this.enable) {
-			this.buildModes[buildModeId].building = true;
+			this.buildModeInfos[buildModeId].building = true;
 			await this._build(buildModeId, "/bb", outputChannel);
 		} else {
 			throw new Error("This Project is disabled!");
@@ -605,7 +651,7 @@ class ProjInfo {
 
 	public async rebuild(buildModeId: number, outputChannel: vscode.OutputChannel) {
 		if (this.enable) {
-			this.buildModes[buildModeId].building = true;
+			this.buildModeInfos[buildModeId].building = true;
 			await this._build(buildModeId, "/br", outputChannel);
 		} else {
 			throw new Error("This Project is disabled!");
@@ -614,19 +660,24 @@ class ProjInfo {
 
 	private _build(buildModeId: number, buildOpt: string, outputChannel: vscode.OutputChannel): Promise<void> {
 		return new Promise((resolve) => {
-			const buildMode = this.buildModes[buildModeId];
+			const buildModeInfo = this.buildModeInfos[buildModeId];
 			const cspExePath = config.cspExePath.replace(/\\/g, "\\\\");
 			const prjFilePath = this.projFilePath.fsPath.replace(/\\/g, "\\\\");
-			const cmmand = `"${cspExePath}" ${buildOpt} "${buildMode.buildMode}" "${prjFilePath}"`;
+			const cmmand = `"${cspExePath}" ${buildOpt} "${buildModeInfo.buildMode}" "${prjFilePath}"`;
 			//
+			buildModeInfo.buildStart();
 			outputChannel.appendLine("Build Start: " + cmmand);
 			//
-			const proc = child_process.spawn(cspExePath, [buildOpt, buildMode.buildMode, prjFilePath]);
+			const proc = child_process.spawn(cspExePath, [buildOpt, buildModeInfo.buildMode, prjFilePath]);
 			proc.stdout.on("data", (log) => {
-				outputChannel.append(iconv.decode(log, "sjis"));
+				const msg = iconv.decode(log, "sjis");
+				buildModeInfo.analyzeBuildMsg(msg);
+				outputChannel.append(msg);
 			});
 			proc.stderr.on("data", (log) => {
-				outputChannel.append(iconv.decode(log, "sjis"));
+				const msg = iconv.decode(log, "sjis");
+				buildModeInfo.analyzeBuildMsg(msg);
+				outputChannel.append(msg);
 			});
 			// 途中終了:exit
 			/*
@@ -645,7 +696,7 @@ class ProjInfo {
 					outputChannel.appendLine("Build Failed!");
 				}
 				resolve();
-				buildMode.building = false;
+				buildModeInfo.building = false;
 			});
 		});
 	}
@@ -683,7 +734,7 @@ class ProjInfo {
 							const buildModeInfo = new BuildModeInfo(this.id, buildModeId, buildMode);
 							buildModeInfo.projectName = this._projectName;
 							// BuildModeInfo登録
-							this.buildModes.push(buildModeInfo);
+							this.buildModeInfos.push(buildModeInfo);
 						}
 					}
 				}
@@ -700,7 +751,20 @@ class BuildModeInfo {
 	public hexFile: string;
 	// ビルド情報
 	public buildStatus: string;
-	public htmlIdBuildStatus: string;
+	public ramSize: number;
+	public romSize: number;
+	public programSize: number;
+	public errorCount: number;
+	public warningCount: number;
+	public successCount: number;
+	public failedCount: number;
+	public buildDate: string;
+	// Buildログ解析正規表現
+	static reBuildMsgRamDataSection = /RAMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
+	static reBuildMsgRomDataSection = /ROMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
+	static reBuildMsgProgramSection = /PROGRAM SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
+	static reBuildMsgBuildFinish1 = /ビルド終了\(エラー:([0-9]+)個, 警告:([0-9]+)個\)/;
+	static reBuildMsgBuildFinish2 = /終了しました\(成功:([0-9]+)プロジェクト, 失敗:([0-9]+)プロジェクト\)\(([^\)]+)\)/;
 
 	constructor(public projId: number, public buildModeId: number, public buildMode: string) {
 		this.enable = true;
@@ -710,7 +774,53 @@ class BuildModeInfo {
 		this.hexFile = "";
 		//
 		this.buildStatus = "<未ビルド>";
-		this.htmlIdBuildStatus = `BuildStatus_${this.projId}_${this.buildModeId}`;
+		this.ramSize = 0;
+		this.romSize = 0;
+		this.programSize = 0;
+		this.errorCount = 0;
+		this.warningCount = 0;
+		this.successCount = 0;
+		this.failedCount = 0;
+		this.buildDate = "";
+	}
+
+	public buildStart() {
+		// Build開始時に各種情報を初期化する
+		this.buildStatus = "<未ビルド>";
+	}
+
+	public analyzeBuildMsg(msg: string) {
+		// Buildログを受け取って解析する
+		let match: RegExpMatchArray | null;
+		// RAMサイズ
+		if (match = msg.match(BuildModeInfo.reBuildMsgRamDataSection)) {
+			this.ramSize = parseInt(match[1], 16);
+		}
+		// ROMサイズ
+		if (match = msg.match(BuildModeInfo.reBuildMsgRomDataSection)) {
+			this.romSize = parseInt(match[1], 16);
+		}
+		// PROGRAMサイズ
+		if (match = msg.match(BuildModeInfo.reBuildMsgProgramSection)) {
+			this.programSize = parseInt(match[1], 16);
+		}
+		// error数/warning数
+		if (match = msg.match(BuildModeInfo.reBuildMsgBuildFinish1)) {
+			this.errorCount = parseInt(match[1]);
+			this.warningCount = parseInt(match[2]);
+		}
+		// PROGRAMサイズ
+		if (match = msg.match(BuildModeInfo.reBuildMsgBuildFinish2)) {
+			this.successCount = parseInt(match[1]);
+			this.failedCount = parseInt(match[2]);
+			this.buildDate = match[2];
+			// BuildStatus作成
+			if (this.successCount !== 0 && this.failedCount === 0) {
+				this.buildStatus = "Success";
+			} else {
+				this.buildStatus = "Failed";
+			}
+		}
 	}
 }
 

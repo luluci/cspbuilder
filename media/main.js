@@ -68,21 +68,49 @@
 	window.addEventListener('message', event => {
 		const message = event.data; // The json data that the extension sent
 		switch (message.command) {
-			case 'BuildSuccess':
-				buildSuccess(message);
+			case 'BuildFinish':
+				buildFinish(message);
 				break;
 		}
 	});
 
 
-	function buildSuccess(message) {
-		const buildStatusId = `BuildStatus_${message.projectId}_${message.buildModeId}`;
+	function buildFinish(message) {
+		// ID
+		const id = `${message.projectId}_${message.buildModeId}`;
+		// BuildStatus
+		const buildStatusId = `BuildStatus_Result_${id}`;
 		const buildStatus = document.getElementById(buildStatusId);
 		const currElem = buildStatus.querySelector("span");
 		const newElem = document.createElement("span");
-		newElem.className = "BuildSuccess";
-		newElem.textContent = "Success";
+		if (message.buildStatus === "Success") {
+			newElem.className = "BuildSuccess";
+			newElem.textContent = "Success";
+		} else {
+			newElem.className = "BuildFailed";
+			newElem.textContent = "Failed";
+		}
 		buildStatus.replaceChild(newElem, currElem);
+		// RAM size
+		const ramSizeId = `BuildStatus_RamSize_${id}`;
+		const ramSize = document.getElementById(ramSizeId);
+		ramSize.textContent = `${message.ramSize} bytes`;
+		// RAM size
+		const romSizeId = `BuildStatus_RomSize_${id}`;
+		const romSize = document.getElementById(romSizeId);
+		romSize.textContent = `${message.romSize} bytes`;
+		// RAM size
+		const programSizeId = `BuildStatus_ProgramSize_${id}`;
+		const programSize = document.getElementById(programSizeId);
+		programSize.textContent = `${message.programSize} bytes`;
+		// ErrorCount
+		const errorCountId = `BuildStatus_ErrorCount_${id}`;
+		const errorCount = document.getElementById(errorCountId);
+		errorCount.textContent = `${message.errorCount}`;
+		// WarningCount
+		const warningCountId = `BuildStatus_WarningCount_${id}`;
+		const warningCount = document.getElementById(warningCountId);
+		warningCount.textContent = `${message.warningCount}`;
 	}
 
 	/*

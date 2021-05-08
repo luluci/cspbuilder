@@ -64,18 +64,18 @@ export class CSPBuilderPanel {
 		this._outputChannel = vscode.window.createOutputChannel("CS+Builder");
 		this._outputChannel.show();
 		// WebView Init
-		this._update();
+		this._init();
 		// Dispose
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 		// View Changed
 		this._panel.onDidChangeViewState(
 			e => {
 				if (this._panel.visible) {
-					this._update();
+					//this._update();
 				}
 			},
 			null,
-			this._disposables
+			context.subscriptions
 		);
 		// PostMessage: WebView => Extension
 		this._panel.webview.onDidReceiveMessage(
@@ -196,12 +196,14 @@ export class CSPBuilderPanel {
 
 
 	private async _build(prjId: number, buildModeId: number) {
+		this._outputChannel.show();
 		// BuildModeInfo取得
 		const prjInfo = this._wsInfo[0].projInfos[prjId];
 		// ビルドタスク実行
 		try {
 			await prjInfo.build(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._update();
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);
@@ -211,12 +213,14 @@ export class CSPBuilderPanel {
 	}
 
 	private async _rebuild(prjId: number, buildModeId: number) {
+		this._outputChannel.show();
 		// BuildModeInfo取得
 		const prjInfo = this._wsInfo[0].projInfos[prjId];
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._update();
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("ReBuild task terminated: " + e);
@@ -226,12 +230,14 @@ export class CSPBuilderPanel {
 	}
 
 	private async _release(prjId: number, buildModeId: number) {
+		this._outputChannel.show();
 		// BuildModeInfo取得
 		const prjInfo = this._wsInfo[0].projInfos[prjId];
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._update();
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);
@@ -241,7 +247,7 @@ export class CSPBuilderPanel {
 	}
 
 
-	private async _update() {
+	private async _init() {
 		this._panel.title = "CS+ Builder";
 		// プロジェクトファイルを取得
 		const wsList = await this._getPrjFiles();
@@ -249,6 +255,11 @@ export class CSPBuilderPanel {
 		this._panel.webview.html = await this._getHtmlForWebview(wsList);
 		// プロジェクトファイル情報を記憶
 		this._wsInfo = wsList;
+	}
+
+	private async _update() {
+		// html生成
+		this._panel.webview.html = await this._getHtmlForWebview(this._wsInfo);
 	}
 
 	private async _getPrjFiles() {
@@ -358,7 +369,7 @@ export class CSPBuilderPanel {
 	private _getHtmlForWebviewHeader(): string {
 		const webview = this._panel.webview;
 
-		if (!this._webViewHtmlHeader) {
+		//if (!this._webViewHtmlHeader) {
 			// Local Resource Path
 			const stylesPathMainPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css');
 			const stylesMainUri = webview.asWebviewUri(stylesPathMainPath);
@@ -374,7 +385,7 @@ export class CSPBuilderPanel {
 				<title>CS+ Builder</title>
 			</head>
 			`;
-		}
+		//}
 		return this._webViewHtmlHeader;
 	}
 
@@ -410,7 +421,7 @@ export class CSPBuilderPanel {
 	}
 
 	private _getHtmlForWebviewProjFileInfo(wsList: Array<CSPWorkspaceInfo>): string {
-		if (!this._webViewHtmlProjFileInfo) {
+		//if (!this._webViewHtmlProjFileInfo) {
 			// 先頭要素のみ使用する
 			const wsInfo = wsList[0];
 			// html初期化
@@ -436,6 +447,50 @@ export class CSPBuilderPanel {
 						if (config.defaultDeactive.includes(buildMode.buildMode)) {
 							checked = '';
 						}
+						// 表示データ作成
+						let buildStatus: string;
+						if (buildMode.buildStatus !== undefined) {
+							switch (buildMode.buildStatus) {
+								case "Success":
+									buildStatus = '<span class="BuildSuccess">Success</span>';
+									break;
+								default:
+									buildStatus = '<span class="BuildFailed">Failed</span>';
+									break;
+							}
+						} else {
+							buildStatus = '<span>未ビルド</span>';
+						}
+						let ramSize: string;
+						if (buildMode.ramSize !== undefined) {
+							ramSize = `${buildMode.ramSize} bytes`;
+						} else {
+							ramSize = `-`;
+						}
+						let romSize: string;
+						if (buildMode.romSize !== undefined) {
+							romSize = `${buildMode.romSize} bytes`;
+						} else {
+							romSize = `-`;
+						}
+						let programSize: string;
+						if (buildMode.programSize !== undefined) {
+							programSize = `${buildMode.programSize} bytes`;
+						} else {
+							programSize = `-`;
+						}
+						let errorCount: string;
+						if (buildMode.errorCount !== undefined) {
+							errorCount = `${buildMode.errorCount}`;
+						} else {
+							errorCount = `-`;
+						}
+						let warningCount: string;
+						if (buildMode.warningCount !== undefined) {
+							warningCount = `${buildMode.warningCount}`;
+						} else {
+							warningCount = `-`;
+						}
 						// html生成
 						this._webViewHtmlProjFileInfo += `
 						<div class="build_mode_container">
@@ -454,37 +509,37 @@ export class CSPBuilderPanel {
 										<tr>
 											<td class="property">Result</td>
 											<td class="data"><span class="BuildStatus" id="BuildStatus_Result_${buildId}">
-												<span>${buildMode.buildStatus}</span>
+												${buildStatus}
 											</span></td>
 										</tr>
 										<tr>
 											<td class="property">RAM size</td>
 											<td class="data"><span class="RamSize" id="BuildStatus_RamSize_${buildId}">
-												-
+												${ramSize}
 											</span></td>
 										</tr>
 										<tr>
 											<td class="property">ROM size</td>
 											<td class="data"><span class="RomSize" id="BuildStatus_RomSize_${buildId}">
-												-
+												${romSize}
 											</span></td>
 										</tr>
 										<tr>
 											<td class="property">PROGRAM size</td>
 											<td class="data"><span class="ProgramSize" id="BuildStatus_ProgramSize_${buildId}">
-												-
+												${programSize}
 											</span></td>
 										</tr>
 										<tr>
 											<td class="property">Error Count</td>
 											<td class="data"><span class="ErrorCount" id="BuildStatus_ErrorCount_${buildId}">
-												-
+												${errorCount}
 											</span></td>
 										</tr>
 										<tr>
 											<td class="property">Warning Count</td>
 											<td class="data"><span class="WarningCount" id="BuildStatus_WarningCount_${buildId}">
-												-
+												${warningCount}
 											</span></td>
 										</tr>
 									</tbody>
@@ -532,7 +587,7 @@ export class CSPBuilderPanel {
 					`;
 				}
 			}
-		}
+		//}
 		return this._webViewHtmlProjFileInfo;
 	}
 
@@ -750,15 +805,15 @@ class BuildModeInfo {
 	public absFile: string;
 	public hexFile: string;
 	// ビルド情報
-	public buildStatus: string;
-	public ramSize: number;
-	public romSize: number;
-	public programSize: number;
-	public errorCount: number;
-	public warningCount: number;
-	public successCount: number;
-	public failedCount: number;
-	public buildDate: string;
+	public buildStatus?: string;
+	public ramSize?: number;
+	public romSize?: number;
+	public programSize?: number;
+	public errorCount?: number;
+	public warningCount?: number;
+	public successCount?: number;
+	public failedCount?: number;
+	public buildDate?: string;
 	// Buildログ解析正規表現
 	static reBuildMsgRamDataSection = /RAMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
 	static reBuildMsgRomDataSection = /ROMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
@@ -772,21 +827,19 @@ class BuildModeInfo {
 		this.projectName = "";
 		this.absFile = "";
 		this.hexFile = "";
-		//
-		this.buildStatus = "<未ビルド>";
-		this.ramSize = 0;
-		this.romSize = 0;
-		this.programSize = 0;
-		this.errorCount = 0;
-		this.warningCount = 0;
-		this.successCount = 0;
-		this.failedCount = 0;
-		this.buildDate = "";
 	}
 
 	public buildStart() {
 		// Build開始時に各種情報を初期化する
-		this.buildStatus = "<未ビルド>";
+		this.buildStatus = undefined;
+		this.ramSize = undefined;
+		this.romSize = undefined;
+		this.programSize = undefined;
+		this.errorCount = undefined;
+		this.warningCount = undefined;
+		this.successCount = undefined;
+		this.failedCount = undefined;
+		this.buildDate = undefined;
 	}
 
 	public analyzeBuildMsg(msg: string) {

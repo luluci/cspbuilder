@@ -61,8 +61,10 @@ export class MtpjInfo {
 
 	public async build(buildModeId: number, outputChannel: vscode.OutputChannel) {
 		if (this.enable) {
-			this.buildModeInfos[buildModeId].building = true;
-			await this._build(buildModeId, "/bb", outputChannel);
+			const buildModeInfo = this.buildModeInfos[buildModeId];
+			buildModeInfo.building = true;
+			await this._build(buildModeInfo, "/bb", outputChannel);
+			await buildModeInfo.checkOutputFile();
 		} else {
 			throw new Error("This Project is disabled!");
 		}
@@ -70,21 +72,21 @@ export class MtpjInfo {
 
 	public async rebuild(buildModeId: number, outputChannel: vscode.OutputChannel) {
 		if (this.enable) {
-			this.buildModeInfos[buildModeId].building = true;
-			await this._build(buildModeId, "/br", outputChannel);
+			const buildModeInfo = this.buildModeInfos[buildModeId];
+			buildModeInfo.building = true;
+			await this._build(buildModeInfo, "/br", outputChannel);
+			await buildModeInfo.checkOutputFile();
 		} else {
 			throw new Error("This Project is disabled!");
 		}
 	}
 
-	private _build(buildModeId: number, buildOpt: string, outputChannel: vscode.OutputChannel): Promise<void> {
+	private _build(buildModeInfo: BuildModeInfo, buildOpt: string, outputChannel: vscode.OutputChannel): Promise<void> {
 		return new Promise((resolve) => {
-			const buildModeInfo = this.buildModeInfos[buildModeId];
 			const cspExePath = config.cspExePath.replace(/\\/g, "\\\\");
 			const prjFilePath = this.projFilePath.fsPath.replace(/\\/g, "\\\\");
 			const cmmand = `"${cspExePath}" ${buildOpt} "${buildModeInfo.buildMode}" "${prjFilePath}"`;
 			//
-			buildModeInfo.buildStart();
 			outputChannel.appendLine("Build Start: " + cmmand);
 			//
 			const proc = child_process.spawn(cspExePath, [buildOpt, buildModeInfo.buildMode, prjFilePath]);
@@ -114,8 +116,8 @@ export class MtpjInfo {
 					outputChannel.appendLine("");
 					outputChannel.appendLine("Build Failed!");
 				}
-				resolve();
 				buildModeInfo.building = false;
+				resolve();
 			});
 		});
 	}
@@ -133,6 +135,7 @@ export class MtpjInfo {
 		await this._loadProjectFileSecond(json);
 		// 各種ファイルの存在チェック
 		await this._outputFileCheck();
+		await this._loadMapFile();
 	}
 	private async _loadProjectFileFirst(json: any) {
 		// 情報取得
@@ -195,6 +198,7 @@ export class MtpjInfo {
 						key = `HexOptionOutputFileName-${buildModeId}`;
 						if (key in instance) {
 							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
+							buildModeInfo.hexFileName = outputFile;
 							buildModeInfo.hexFilePath = this._makeFilePath(buildModeInfo.hexOutputDir!, outputFile);
 						}
 					}
@@ -213,6 +217,7 @@ export class MtpjInfo {
 						key = `LinkOptionMapFileName-${buildModeId}`;
 						if (key in instance) {
 							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
+							buildModeInfo.mapFileName = outputFile;
 							buildModeInfo.mapFilePath = this._makeFilePath(buildModeInfo.linkOutputDir!, outputFile);
 						}
 					}
@@ -259,28 +264,22 @@ export class MtpjInfo {
 	private async _outputFileCheck() {
 		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
 			const buildModeInfo = this.buildModeInfos[buildModeId];
-			if (buildModeInfo.hexFilePath && buildModeInfo.mapFilePath) {
-				try {
-					// 成功したら前回ビルド情報
-					const hexStat = await vscode.workspace.fs.stat(buildModeInfo.hexFilePath);
-					const mapStat = await vscode.workspace.fs.stat(buildModeInfo.mapFilePath);
-					//
-					buildModeInfo.buildStatus = "prebuild";
-					await this._loadMapFile(buildModeInfo);
-				} catch (e) {
-					// ファイルが見つからなかったら初期化
-					buildModeInfo.hexFilePath = undefined;
-					buildModeInfo.mapFilePath = undefined;
-				}
-			}
+			await buildModeInfo.checkOutputFile();
 		}
 	}
 
-	private async _loadMapFile(buildModeInfo: BuildModeInfo) {
-		// mtpjをjson形式に変換
-		const text = await vscode.workspace.openTextDocument(buildModeInfo.mapFilePath!);
-		for (let lineNo = 0; lineNo < text.lineCount; lineNo++) {
-			buildModeInfo.analyzeMapFileText(text.lineAt(lineNo).text);
+	private async _loadMapFile() {
+		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+			const buildModeInfo = this.buildModeInfos[buildModeId];
+			if (buildModeInfo.enableOutputFile) {
+				// mapファイルを解析して情報取得
+				const text = await vscode.workspace.openTextDocument(buildModeInfo.mapFilePath!);
+				for (let lineNo = 0; lineNo < text.lineCount; lineNo++) {
+					buildModeInfo.analyzeMapFileText(text.lineAt(lineNo).text);
+				}
+				//
+				buildModeInfo.buildStatus = "prebuild";
+			}
 		}
 	}
 }
@@ -293,9 +292,11 @@ class BuildModeInfo {
 	public hexFile: string;
 	// Hex
 	public hexOutputDir?: vscode.Uri;
+	public hexFileName: string;
 	public hexFilePath?: vscode.Uri;
 	// Link
 	public linkOutputDir?: vscode.Uri;
+	public mapFileName: string;
 	public mapFilePath?: vscode.Uri;
 	// ビルド情報
 	public buildStatus?: string;
@@ -307,6 +308,7 @@ class BuildModeInfo {
 	public successCount?: number;
 	public failedCount?: number;
 	public buildDate?: string;
+	public enableOutputFile: boolean;
 	// Buildログ解析正規表現
 	static reBuildMsgRamDataSection = /RAMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
 	static reBuildMsgRomDataSection = /ROMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
@@ -322,10 +324,13 @@ class BuildModeInfo {
 		this.projectName = "";
 		this.absFile = "";
 		this.hexFile = "";
+		this.hexFileName = "";
+		this.mapFileName = "";
+		this.enableOutputFile = false;
 	}
 
-	public buildStart() {
-		// Build開始時に各種情報を初期化する
+	public initBuildInfo() {
+		// Build情報を初期化する
 		this.buildStatus = undefined;
 		this.ramSize = undefined;
 		this.romSize = undefined;
@@ -367,6 +372,7 @@ class BuildModeInfo {
 				this.buildStatus = "Success";
 			} else {
 				this.buildStatus = "Failed";
+				this.initBuildInfo();
 			}
 		}
 	}
@@ -389,6 +395,24 @@ class BuildModeInfo {
 		// PROGRAMサイズ
 		if (match = msg.match(BuildModeInfo.reBuildMsgProgramSection)) {
 			this.programSize = parseInt(match[1], 16);
+		}
+	}
+
+	public async checkOutputFile() {
+		if (this.hexFilePath && this.mapFilePath) {
+			try {
+				// 成功したら前回ビルド情報
+				const hexStat = await vscode.workspace.fs.stat(this.hexFilePath);
+				const mapStat = await vscode.workspace.fs.stat(this.mapFilePath);
+				//
+				this.enableOutputFile = true;
+			} catch (e) {
+				// ファイルが見つからなかったらパス無効
+				this.enableOutputFile = false;
+			}
+		} else {
+			// ファイルが見つからなかったらパス無効
+			this.enableOutputFile = false;
 		}
 	}
 }

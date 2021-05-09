@@ -501,15 +501,20 @@ export class CSPBuilderPanel {
 						}
 						// Build Property
 						let hexFile: string;
-						if (buildMode.hexFilePath !== undefined) {
-							hexFile = buildMode.hexFilePath.fsPath;
+						let mapFile: string;
+						if (buildMode.enableOutputFile) {
+							if (buildMode.hexFilePath !== undefined) {
+								hexFile = buildMode.hexFilePath.fsPath;
+							} else {
+								hexFile = `-`;
+							}
+							if (buildMode.mapFilePath !== undefined) {
+								mapFile = buildMode.mapFilePath.fsPath;
+							} else {
+								mapFile = `-`;
+							}
 						} else {
 							hexFile = `-`;
-						}
-						let mapFile: string;
-						if (buildMode.mapFilePath !== undefined) {
-							mapFile = buildMode.mapFilePath.fsPath;
-						} else {
 							mapFile = `-`;
 						}
 						// html生成

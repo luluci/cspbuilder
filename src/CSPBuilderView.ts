@@ -1,8 +1,7 @@
 import { posix } from 'path';
 import * as vscode from 'vscode';
-import * as child_process from 'child_process';
-import * as xml2js from 'xml2js';
-import * as iconv from 'iconv-lite';
+import { DeviceInfo, config } from './config';
+import { MtpjInfo } from './CSPProjectInfo';
 
 export class CSPBuilderPanel {
 	// View ID
@@ -454,12 +453,21 @@ export class CSPBuilderPanel {
 								case "Success":
 									buildStatus = '<span class="BuildSuccess">Success</span>';
 									break;
-								default:
+								case "Failed":
 									buildStatus = '<span class="BuildFailed">Failed</span>';
+									break;
+								default:
+									buildStatus = `<span>${buildMode.buildStatus}</span>`;
 									break;
 							}
 						} else {
 							buildStatus = '<span>未ビルド</span>';
+						}
+						let buildDate: string;
+						if (buildMode.buildDate !== undefined) {
+							buildDate = `${buildMode.buildDate}`;
+						} else {
+							buildDate = `-`;
 						}
 						let ramSize: string;
 						if (buildMode.ramSize !== undefined) {
@@ -491,6 +499,19 @@ export class CSPBuilderPanel {
 						} else {
 							warningCount = `-`;
 						}
+						// Build Property
+						let hexFile: string;
+						if (buildMode.hexFilePath !== undefined) {
+							hexFile = buildMode.hexFilePath.fsPath;
+						} else {
+							hexFile = `-`;
+						}
+						let mapFile: string;
+						if (buildMode.mapFilePath !== undefined) {
+							mapFile = buildMode.mapFilePath.fsPath;
+						} else {
+							mapFile = `-`;
+						}
 						// html生成
 						this._webViewHtmlProjFileInfo += `
 						<div class="build_mode_container">
@@ -510,6 +531,12 @@ export class CSPBuilderPanel {
 											<td class="property">Result</td>
 											<td class="data"><span class="BuildStatus" id="BuildStatus_Result_${buildId}">
 												${buildStatus}
+											</span></td>
+										</tr>
+										<tr>
+											<td class="property">Date</td>
+											<td class="data"><span class="Date" id="BuildStatus_Date_${buildId}">
+												${buildDate}
 											</span></td>
 										</tr>
 										<tr>
@@ -563,12 +590,12 @@ export class CSPBuilderPanel {
 											<td class="data">${romArea}</td>
 										</tr>
 										<tr>
-											<td class="property">情報1</td>
-											<td class="data">1</td>
+											<td class="property">hex/mot file</td>
+											<td class="data">${hexFile}</td>
 										</tr>
 										<tr>
-											<td class="property">情報2</td>
-											<td class="data">2</td>
+											<td class="property">map file</td>
+											<td class="data">${mapFile}</td>
 										</tr>
 									</tbody>
 								</table>
@@ -615,7 +642,7 @@ export class CSPBuilderPanel {
 
 class CSPWorkspaceInfo {
 	// プロジェクトファイル情報リスト(複数ファイルを想定)
-	public projInfos: Array<ProjInfo>;
+	public projInfos: Array<MtpjInfo>;
 	// プロジェクト共通情報
 	private _version: string;
 
@@ -640,238 +667,10 @@ class CSPWorkspaceInfo {
 				const ext = posix.extname(name);
 				if (ext === '.mtpj') {
 					const fileUri = vscode.Uri.parse(posix.join(this.rootPath.path, name));
-					const inf = new ProjInfo(projId, fileUri);
+					const inf = new MtpjInfo(projId, fileUri);
 					await inf.analyze(outputChannel);
 					this.projInfos.push(inf);
 				}
-			}
-		}
-	}
-}
-
-class ProjInfo {
-	public projFileName: string;
-	public rcpeFilePath: vscode.Uri;
-	public enable: boolean;
-	public buildModeInfos: Array<BuildModeInfo>;
-	// プロジェクト情報
-	private _projectName: string;
-	public micomSeries: string;
-	public micomDevice: string;
-	public micomDeviceInfo?: DeviceInfo;
-
-	constructor(public id: number, public projFilePath: vscode.Uri) {
-		this.projFileName = posix.basename(projFilePath.path);
-		const dir = posix.dirname(projFilePath.path);
-		const file = posix.basename(projFilePath.path, ".mtpj") + ".rcpe";
-		const rcpeFile = posix.join(dir, file);
-		this.rcpeFilePath = vscode.Uri.parse(rcpeFile);
-		this.buildModeInfos = [];
-		this.enable = true;
-		this._projectName = "";
-		this.micomSeries = "";
-		this.micomDevice = "";
-	}
-
-	public async analyze(outputChannel: vscode.OutputChannel) {
-		//await this._checkRcpeFile(outputChannel);
-		//await this._loadRcpeFile();
-		await this._loadProjectFile();
-	}
-
-	public building(buildModeId: number = -1): boolean {
-		if (buildModeId === -1) {
-			let result = true;
-			for (let buildMode of this.buildModeInfos) {
-				if (buildMode.building) {
-					result = false;
-					break;
-				}
-			}
-			return result;
-		} else {
-			const buildMode = this.buildModeInfos[buildModeId];
-			return buildMode.building;
-		}
-	}
-
-	public async build(buildModeId: number, outputChannel:vscode.OutputChannel) {
-		if (this.enable) {
-			this.buildModeInfos[buildModeId].building = true;
-			await this._build(buildModeId, "/bb", outputChannel);
-		} else {
-			throw new Error("This Project is disabled!");
-		}
-	}
-
-	public async rebuild(buildModeId: number, outputChannel: vscode.OutputChannel) {
-		if (this.enable) {
-			this.buildModeInfos[buildModeId].building = true;
-			await this._build(buildModeId, "/br", outputChannel);
-		} else {
-			throw new Error("This Project is disabled!");
-		}
-	}
-
-	private _build(buildModeId: number, buildOpt: string, outputChannel: vscode.OutputChannel): Promise<void> {
-		return new Promise((resolve) => {
-			const buildModeInfo = this.buildModeInfos[buildModeId];
-			const cspExePath = config.cspExePath.replace(/\\/g, "\\\\");
-			const prjFilePath = this.projFilePath.fsPath.replace(/\\/g, "\\\\");
-			const cmmand = `"${cspExePath}" ${buildOpt} "${buildModeInfo.buildMode}" "${prjFilePath}"`;
-			//
-			buildModeInfo.buildStart();
-			outputChannel.appendLine("Build Start: " + cmmand);
-			//
-			const proc = child_process.spawn(cspExePath, [buildOpt, buildModeInfo.buildMode, prjFilePath]);
-			proc.stdout.on("data", (log) => {
-				const msg = iconv.decode(log, "sjis");
-				buildModeInfo.analyzeBuildMsg(msg);
-				outputChannel.append(msg);
-			});
-			proc.stderr.on("data", (log) => {
-				const msg = iconv.decode(log, "sjis");
-				buildModeInfo.analyzeBuildMsg(msg);
-				outputChannel.append(msg);
-			});
-			// 途中終了:exit
-			/*
-			proc.on("exit", (code) => {
-				outputChannel.appendLine("");
-				outputChannel.appendLine("Build Treminated?");
-			});
-			*/
-			// 終了イベント
-			proc.on("close", (exitCode) => {
-				if (exitCode === 0) {
-					outputChannel.appendLine("");
-					outputChannel.appendLine("Build Success!");
-				} else {
-					outputChannel.appendLine("");
-					outputChannel.appendLine("Build Failed!");
-				}
-				resolve();
-				buildModeInfo.building = false;
-			});
-		});
-	}
-
-	private async _loadProjectFile() {
-		// mtpjをjson形式に変換
-		const xml = await vscode.workspace.openTextDocument(this.projFilePath);
-		const json = await xml2js.parseStringPromise(xml.getText());
-		// 情報取得
-		const classInfos = json.CubeSuiteProject.Class;
-		for (let i = 0; i < classInfos.length; i++) {
-			const instances = classInfos[i].Instance;
-			for (let instanceId = 0; instanceId < instances.length; instanceId++) {
-				const instance = instances[instanceId];
-				// Device情報
-				if ("DeviceName" in instance) {
-					this.micomDevice = instance.DeviceName[0];
-					this.micomDeviceInfo = config.getRomArea(this.micomDevice);
-				}
-				// BuildMode情報
-				if ("BuildModeCount" in instance) {
-					// BuildModeCount取得
-					// 数字であるはずなので、parseに失敗する場合はプロジェクトファイルに合わせてロジックの見直しが必要
-					const buildModeCount = parseInt(instance.BuildModeCount[0]);
-					if (isNaN(buildModeCount)) {
-						this.enable = false;
-						throw new Error("mtpj format is invalid!");
-					}
-					// BuildMode情報取得
-					for (let buildModeId = 0; buildModeId < buildModeCount; buildModeId++) {
-						const buildModeTag = `BuildMode${buildModeId}`;
-						if (buildModeTag in instance) {
-							const buildModeStr = instance[buildModeTag][0];
-							const buildMode = Buffer.from(buildModeStr, 'base64').toString('utf16le');
-							const buildModeInfo = new BuildModeInfo(this.id, buildModeId, buildMode);
-							buildModeInfo.projectName = this._projectName;
-							// BuildModeInfo登録
-							this.buildModeInfos.push(buildModeInfo);
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-class BuildModeInfo {
-	public enable: boolean;
-	public building: boolean;
-	public projectName: string;
-	public absFile: string;
-	public hexFile: string;
-	// ビルド情報
-	public buildStatus?: string;
-	public ramSize?: number;
-	public romSize?: number;
-	public programSize?: number;
-	public errorCount?: number;
-	public warningCount?: number;
-	public successCount?: number;
-	public failedCount?: number;
-	public buildDate?: string;
-	// Buildログ解析正規表現
-	static reBuildMsgRamDataSection = /RAMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
-	static reBuildMsgRomDataSection = /ROMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
-	static reBuildMsgProgramSection = /PROGRAM SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
-	static reBuildMsgBuildFinish1 = /ビルド終了\(エラー:([0-9]+)個, 警告:([0-9]+)個\)/;
-	static reBuildMsgBuildFinish2 = /終了しました\(成功:([0-9]+)プロジェクト, 失敗:([0-9]+)プロジェクト\)\(([^\)]+)\)/;
-
-	constructor(public projId: number, public buildModeId: number, public buildMode: string) {
-		this.enable = true;
-		this.building = false;
-		this.projectName = "";
-		this.absFile = "";
-		this.hexFile = "";
-	}
-
-	public buildStart() {
-		// Build開始時に各種情報を初期化する
-		this.buildStatus = undefined;
-		this.ramSize = undefined;
-		this.romSize = undefined;
-		this.programSize = undefined;
-		this.errorCount = undefined;
-		this.warningCount = undefined;
-		this.successCount = undefined;
-		this.failedCount = undefined;
-		this.buildDate = undefined;
-	}
-
-	public analyzeBuildMsg(msg: string) {
-		// Buildログを受け取って解析する
-		let match: RegExpMatchArray | null;
-		// RAMサイズ
-		if (match = msg.match(BuildModeInfo.reBuildMsgRamDataSection)) {
-			this.ramSize = parseInt(match[1], 16);
-		}
-		// ROMサイズ
-		if (match = msg.match(BuildModeInfo.reBuildMsgRomDataSection)) {
-			this.romSize = parseInt(match[1], 16);
-		}
-		// PROGRAMサイズ
-		if (match = msg.match(BuildModeInfo.reBuildMsgProgramSection)) {
-			this.programSize = parseInt(match[1], 16);
-		}
-		// error数/warning数
-		if (match = msg.match(BuildModeInfo.reBuildMsgBuildFinish1)) {
-			this.errorCount = parseInt(match[1]);
-			this.warningCount = parseInt(match[2]);
-		}
-		// PROGRAMサイズ
-		if (match = msg.match(BuildModeInfo.reBuildMsgBuildFinish2)) {
-			this.successCount = parseInt(match[1]);
-			this.failedCount = parseInt(match[2]);
-			this.buildDate = match[2];
-			// BuildStatus作成
-			if (this.successCount !== 0 && this.failedCount === 0) {
-				this.buildStatus = "Success";
-			} else {
-				this.buildStatus = "Failed";
 			}
 		}
 	}
@@ -889,99 +688,3 @@ function getNonce() {
 function toHex(value:number, len:number): string {
 	return ("0000000000000000" + value.toString(16).toUpperCase()).slice(-len);
 }
-
-class DeviceInfo {
-	public romAreaBegin: number;
-	public romAreaEnd: number;
-
-	constructor() {
-		this.romAreaBegin = 0;
-		this.romAreaEnd = 0;
-	}
-}
-
-class Configuration {
-	
-	public cspExePath: string;
-	public defaultDeactive: Array<string>;
-	public romArea: Map<string, DeviceInfo>;
-
-	constructor() {
-		// 拡張機能Configuration取得
-		const conf = vscode.workspace.getConfiguration('cspBuilder');
-		// CS+パス
-		this.cspExePath = conf.csplus.path;
-		// DefaultDeactive設定
-		this.defaultDeactive = this.commaSeqToArray(conf.BuildMode.DefaultDeactive);
-		// ROMエリア定義
-		this.romArea = new Map<string, DeviceInfo>();
-		const confROMArea = conf.Micom.ROMArea;
-		for (const key of Reflect.ownKeys(confROMArea)) {
-			const valueAsHex = confROMArea[key];
-			const [device, area] = key.toString().split(".");
-			// valueチェック
-			let value = parseInt(valueAsHex, 16);
-			if (!isNaN(value)) {
-				// valueが無効値の場合はスキップ
-				// deviceチェック
-				let mapDevice = this.romArea.get(device);
-				if (mapDevice === undefined) {
-					this.romArea.set(device, new DeviceInfo());
-					mapDevice = this.romArea.get(device);
-				}
-				// areaチェック
-				switch (area) {
-					case "begin":
-						mapDevice!.romAreaBegin = value;
-						break;
-					case "end":
-						mapDevice!.romAreaEnd = value;
-						break;
-				}
-			}
-		}
-	}
-
-	public getRomArea(device:string): DeviceInfo|undefined {
-		let result: DeviceInfo | undefined = undefined;
-		// deviceチェック
-		let deviceInfo = this.romArea.get(device);
-		if (deviceInfo) {
-			result = deviceInfo;
-		}
-		return result;
-	}
-
-	private commaSeqToArray(org: string) {
-		let result: Array<string> = [];
-		let reSep = /(["'])/;
-		//
-		while (org !== "") {
-			// 空白スキップ
-			let temp = org.trim();
-			// 先頭文字チェック
-			let posBegin = 0;
-			let posOffset = 0;
-			let ch = temp.charAt(posBegin);
-			let reMatch = ch.match(reSep);
-			let sep = ",";
-			if (reMatch) {
-				posBegin = 1;
-				posOffset = 1;
-				sep = reMatch[0];
-			}
-			// 区切り文字の位置を探す
-			let posEnd = temp.indexOf(sep, posBegin);
-			if (posEnd === -1) {
-				posEnd = temp.length;
-			}
-			// 先頭データ分割
-			let token = temp.slice(posBegin, posEnd).trim();
-			result.push(token);
-			// 次文字列作成
-			org = temp.slice(posEnd + 1 + posOffset);
-		}
-		return result;
-	}
-}
-const config = new Configuration();

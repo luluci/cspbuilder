@@ -178,12 +178,20 @@ export class MtpjInfo {
 			}
 			//
 			const device = this.micomDevice;
+			/*
 			const cfgGenPath = cfgGen!.replace(/\\/g, "\\\\");
 			const cfgFilePath = this.cfgFilePath!.fsPath.replace(/\\/g, "\\\\");
 			const devicefilePath = devicefile!.replace(/\\/g, "\\\\");
 			const sitPath = buildModeInfo.sitFilePath!.fsPath.replace(/\\/g, "\\\\");
 			const sihcPath = buildModeInfo.sihcFilePath!.fsPath.replace(/\\/g, "\\\\");
 			const sihaPath = buildModeInfo.sihaFilePath!.fsPath.replace(/\\/g, "\\\\");
+			*/
+			const cfgGenPath = cfgGen!;
+			const cfgFilePath = this.cfgFilePath!.fsPath;
+			const devicefilePath = devicefile!;
+			const sitPath = buildModeInfo.sitFilePath!.fsPath;
+			const sihcPath = buildModeInfo.sihcFilePath!.fsPath;
+			const sihaPath = buildModeInfo.sihaFilePath!.fsPath;
 			const cmmand = `"${cfgGenPath}" -cpu ${device} -devpath="${devicefilePath}" -i "${sitPath}" -dc "${sihcPath}" -da "${sihaPath}" "${cfgFilePath}"`;
 			//
 			outputChannel.appendLine("Build Start: " + cmmand);
@@ -192,10 +200,10 @@ export class MtpjInfo {
 				cfgGenPath,
 				[
 					`-cpu`, `${device}`,
-					`-devpath="${devicefilePath}"`,
-					`-i`, `"${sitPath}"`,
-					`-dc`, `"${sihcPath}"`,
-					`-da`, `"${sihaPath}"`,
+					`-devpath=${devicefilePath}`,
+					`-i`, `${sitPath}`,
+					`-dc`, `${sihcPath}`,
+					`-da`, `${sihaPath}`,
 					cfgFilePath
 				]
 			);

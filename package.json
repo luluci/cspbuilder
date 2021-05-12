@@ -21,27 +21,58 @@
 			{
 				"title": "CS+ Builder",
 				"properties": {
-					"cspBuilder.csplus.path": {
+					"cspBuilder.path.CC.CSPlus": {
 						"type": "string",
 						"default": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\CubeSuite+.exe",
-						"description": "CubeSuite+.exe へのパスを設定"
+						"description": "[CS+ for CC] CubeSuite+.exe へのパスを設定"
+					},
+					"cspBuilder.path.CC.RTOS.Configurator": {
+						"type": "object",
+						"description": "[CS+ for CC] RTOSコンフィグレータ へのパスを設定",
+						"default": {
+							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4\\bin\\cf78v4.exe"
+						},
+						"properties": {
+							"RL78": {
+								"type": "string"
+							}
+						}
+					},
+					"cspBuilder.path.CC.RTOS.Devicefile": {
+						"type": "object",
+						"description": "[CS+ for CC] デバイスファイルフォルダへのパスを設定",
+						"default": {
+							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\Device\\RL78\\Devicefile"
+						},
+						"properties": {
+							"RL78": {
+								"type": "string"
+							}
+						}
 					},
 					"cspBuilder.BuildMode.DefaultDeactive": {
 						"type": "string",
 						"default": "DefaultBuild",
 						"description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
 					},
+					"cspBuilder.Micom.RL78": {
+						"type": "object",
+						"default": {
+							"R5F101SL": "1"
+						},
+						"properties": {
+							"R5F101SL": {
+								"type": "string"
+							}
+						}
+					},
 					"cspBuilder.Micom.ROMArea": {
 						"type": "object",
 						"default": {
-							"R5F101SL.begin": "0x0000",
-							"R5F101SL.end": "0x7FFF"
+							"R5F101SL": "0000:7FFF"
 						},
 						"properties": {
-							"R5F101SL.begin": {
-								"type": "string"
-							},
-							"R5F101SL.end": {
+							"R5F101SL": {
 								"type": "string"
 							}
 						}

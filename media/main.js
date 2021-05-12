@@ -44,6 +44,18 @@
 			});
 		});
 	});
+	document.querySelectorAll('.cfg-gen-button').forEach((elem) => {
+		elem.addEventListener('click', (e) => {
+			let elem = e.currentTarget;
+			let prjId = elem.dataset.prj_id;
+			let buildModeId = elem.dataset.buildmode_id;
+			vscode.postMessage({
+				command: 'onClickButtonCfgGen',
+				prjId: prjId,
+				buildModeId: buildModeId
+			});
+		});
+	});
 	document.querySelectorAll('.release-button').forEach((elem) => {
 		elem.addEventListener('click', (e) => {
 			vscode.postMessage({

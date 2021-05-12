@@ -1,62 +1,119 @@
 import * as vscode from 'vscode';
 
 export class DeviceInfo {
+	public series: string;
 	public romAreaBegin: number;
 	public romAreaEnd: number;
 
 	constructor() {
+		this.series = "";
 		this.romAreaBegin = 0;
 		this.romAreaEnd = 0;
 	}
 }
 
+class CSPlusToolPath {
+	public csplus: string;
+	public configurator: Map<string, string>;
+	public devicefile: Map<string, string>;
+
+	constructor() {
+		this.csplus = "";
+		this.configurator = new Map<string, string>();
+		this.devicefile = new Map<string, string>();
+	}
+}
+
+class CSPlusConf {
+	public cc: CSPlusToolPath;
+
+	constructor() {
+		this.cc = new CSPlusToolPath();
+	}
+}
+
+function key2str(key: string | symbol): string {
+	if (typeof(key) === "symbol") {
+		return key.toString();
+	} else {
+		return key;
+	}
+}
 
 export class Configuration {
+	public path: CSPlusConf;
+	public device: Map<string, DeviceInfo>;
 
-	public cspExePath: string;
 	public defaultDeactive: Array<string>;
-	public romArea: Map<string, DeviceInfo>;
 
 	constructor() {
 		// 拡張機能Configuration取得
 		const conf = vscode.workspace.getConfiguration('cspBuilder');
-		// CS+パス
-		this.cspExePath = conf.csplus.path;
-		// DefaultDeactive設定
-		this.defaultDeactive = this.commaSeqToArray(conf.BuildMode.DefaultDeactive);
+		///////////////////////////////
+		// マイコン情報
+		///////////////////////////////
+		// CS+ツールパス情報
+		this.path = new CSPlusConf();
+		// CS+ for CC
+		// CubeSuite+.exe
+		this.path.cc.csplus = conf.path.CC.CSPlus;
+		// RTOS Configurator
+		const confConfigurator = conf.path.CC.RTOS.Configurator;
+		for (const key of Reflect.ownKeys(confConfigurator)) {
+			this.path.cc.configurator.set(key2str(key), confConfigurator[key]);
+		}
+		const confDevicefile = conf.path.CC.RTOS.Devicefile;
+		for (const key of Reflect.ownKeys(confDevicefile)) {
+			this.path.cc.devicefile.set(key2str(key), confDevicefile[key]);
+		}
+		// Device情報
+		this.device = new Map<string, DeviceInfo>();
+		// Series-Device定義
+		// RL78
+		const confDeviceRL78 = conf.Micom.RL78;
+		for (const key of Reflect.ownKeys(confDeviceRL78)) {
+			// device情報取得
+			let device = this.device.get(key2str(key));
+			if (device === undefined) {
+				// device情報未作成なら作成する
+				this.device.set(key2str(key), new DeviceInfo());
+				device = this.device.get(key2str(key));
+			}
+			// deviceにseries登録
+			device!.series = "RL78";
+		}
 		// ROMエリア定義
-		this.romArea = new Map<string, DeviceInfo>();
 		const confROMArea = conf.Micom.ROMArea;
 		for (const key of Reflect.ownKeys(confROMArea)) {
-			const valueAsHex = confROMArea[key];
-			const [device, area] = key.toString().split(".");
+			const [begin, end] = confROMArea[key].split(":");
+			const romAreaBegin = parseInt(begin, 16);
+			const romAreaEnd = parseInt(end, 16);
 			// valueチェック
-			let value = parseInt(valueAsHex, 16);
-			if (!isNaN(value)) {
-				// valueが無効値の場合はスキップ
-				// deviceチェック
-				let mapDevice = this.romArea.get(device);
-				if (mapDevice === undefined) {
-					this.romArea.set(device, new DeviceInfo());
-					mapDevice = this.romArea.get(device);
+			if (!isNaN(romAreaBegin) && !isNaN(romAreaEnd)) {
+				// begin/endが両方とも16進数ならOK
+				// device情報取得
+				let device = this.device.get(key2str(key));
+				if (device === undefined) {
+					// device情報未作成なら作成する
+					this.device.set(key2str(key), new DeviceInfo());
+					device = this.device.get(key2str(key));
 				}
-				// areaチェック
-				switch (area) {
-					case "begin":
-						mapDevice!.romAreaBegin = value;
-						break;
-					case "end":
-						mapDevice!.romAreaEnd = value;
-						break;
-				}
+				// deviceにROMエリア登録
+				device!.romAreaBegin = romAreaBegin;
+				device!.romAreaEnd = romAreaEnd;
 			}
 		}
+		///////////////////////////////
+		// 拡張機能用設定
+		///////////////////////////////
+		// DefaultDeactive設定
+		this.defaultDeactive = this.commaSeqToArray(conf.BuildMode.DefaultDeactive);
 	}
 
-	public getRomArea(device: string): DeviceInfo | undefined {
+	public getDeviceInfo(device: string): DeviceInfo | undefined {
 		let result: DeviceInfo | undefined = undefined;
 		// deviceチェック
-		let deviceInfo = this.romArea.get(device);
+		let deviceInfo = this.device.get(device);
 		if (deviceInfo) {
 			result = deviceInfo;
 		}

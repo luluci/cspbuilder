@@ -89,6 +89,9 @@ export class CSPBuilderPanel {
 					case 'onClickButtonReBuild':
 						this._onClickButtonReBuild(message.prjId, message.buildModeId);
 						break;
+					case 'onClickButtonCfgGen':
+						this._onClickButtonCfgGen(message.prjId, message.buildModeId);
+						break;
 					case 'onClickButtonRelease':
 						this._onClickButtonRelease();
 						break;
@@ -148,6 +151,17 @@ export class CSPBuilderPanel {
 		} else {
 			this._taskIsActive = true;
 			await this._rebuild(prjId, buildModeId);
+			this._taskIsActive = false;
+		}
+	}
+
+	private async _onClickButtonCfgGen(prjId: number, buildModeId: number) {
+		// ビルドタスクは1つだけ許可する
+		if (this._taskIsActive) {
+			vscode.window.showInformationMessage('Now Building!');
+		} else {
+			this._taskIsActive = true;
+			await this._cfgGen(prjId, buildModeId);
 			this._taskIsActive = false;
 		}
 	}
@@ -223,6 +237,23 @@ export class CSPBuilderPanel {
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("ReBuild task terminated: " + e);
+		} finally {
+			// nothing
+		}
+	}
+
+	private async _cfgGen(prjId: number, buildModeId: number) {
+		this._outputChannel.show();
+		// BuildModeInfo取得
+		const prjInfo = this._wsInfo[0].projInfos[prjId];
+		// ビルドタスク実行
+		try {
+			await prjInfo.cfgGen(buildModeId, this._outputChannel);
+			//this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._update();
+		} catch (e) {
+			// 異常時
+			this._outputChannel.appendLine("CFG gen task terminated: " + e);
 		} finally {
 			// nothing
 		}
@@ -517,6 +548,20 @@ export class CSPBuilderPanel {
 							hexFile = `-`;
 							mapFile = `-`;
 						}
+						// RTOS情報
+						let cfgInfo: string = "";
+						let cfgButton: string = "";
+						if (buildMode.hasRtosInfo) {
+							cfgInfo = `
+								<tr>
+									<td class="property">cfg file</td>
+									<td class="data">${buildMode.cfgFilePath!.fsPath}</td>
+								</tr>
+							`;
+							cfgButton = `
+								<button type="button" class="cfg-gen-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">CFG GEN</button>
+							`;
+						}
 						// html生成
 						this._webViewHtmlProjFileInfo += `
 						<div class="build_mode_container">
@@ -602,12 +647,14 @@ export class CSPBuilderPanel {
 											<td class="property">map file</td>
 											<td class="data">${mapFile}</td>
 										</tr>
+										${cfgInfo}
 									</tbody>
 								</table>
 							</div>
 							<div class="build-ope">
 								<button type="button" class="build-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">Build</button>
 								<button type="button" class="rebuild-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">ReBuild</button>
+								${cfgButton}
 							</div>
 						</div>
 						`;

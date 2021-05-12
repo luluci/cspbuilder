@@ -17,6 +17,9 @@ export class MtpjInfo {
 	public enable: boolean;
 	public buildModeCount: number;
 	public buildModeInfos: Array<BuildModeInfo>;
+	// RTOS情報
+	public hasRtosInfo: boolean;
+	public cfgFilePath?: vscode.Uri;
 	// プロジェクト情報
 	public micomSeries: string;
 	public micomDevice: string;
@@ -33,6 +36,9 @@ export class MtpjInfo {
 		this.buildModeCount = 0;
 		this.buildModeInfos = [];
 		this.enable = true;
+		//
+		this.hasRtosInfo = false;
+		//
 		this.micomSeries = "";
 		this.micomDevice = "";
 	}
@@ -81,9 +87,19 @@ export class MtpjInfo {
 		}
 	}
 
+	public async cfgGen(buildModeId: number, outputChannel: vscode.OutputChannel) {
+		if (this.enable) {
+			const buildModeInfo = this.buildModeInfos[buildModeId];
+			buildModeInfo.building = true;
+			await this._cfgGen(buildModeInfo, outputChannel);
+		} else {
+			throw new Error("This Project is disabled!");
+		}
+	}
+
 	private _build(buildModeInfo: BuildModeInfo, buildOpt: string, outputChannel: vscode.OutputChannel): Promise<void> {
 		return new Promise((resolve) => {
-			const cspExePath = config.cspExePath.replace(/\\/g, "\\\\");
+			const cspExePath = config.path.cc.csplus.replace(/\\/g, "\\\\");
 			const prjFilePath = this.projFilePath.fsPath.replace(/\\/g, "\\\\");
 			const cmmand = `"${cspExePath}" ${buildOpt} "${buildModeInfo.buildMode}" "${prjFilePath}"`;
 			//
@@ -115,6 +131,97 @@ export class MtpjInfo {
 				} else {
 					outputChannel.appendLine("");
 					outputChannel.appendLine("Build Failed!");
+				}
+				buildModeInfo.building = false;
+				resolve();
+			});
+		});
+	}
+
+	/**
+	 * CFGファイル ジェネレート
+	 * @param buildModeInfo 
+	 * @param outputChannel 
+	 * @returns 
+	 */
+	private _cfgGen(buildModeInfo: BuildModeInfo, outputChannel: vscode.OutputChannel): Promise<void> {
+		return new Promise((resolve, reject) => {
+			let enable = true;
+			// CFGファイルジェネレート有効判定
+			if (!buildModeInfo.hasRtosInfo) {
+				enable = false;
+			}
+			if (this.cfgFilePath === undefined) {
+				enable = false;
+			}
+			const series = this.micomDeviceInfo!.series;
+			const cfgGen = config.path.cc.configurator.get(series);
+			if (cfgGen === undefined) {
+				enable = false;
+			}
+			const devicefile = config.path.cc.devicefile.get(series);
+			if (devicefile === undefined) {
+				enable = false;
+			}
+			if (buildModeInfo.sitFilePath === undefined) {
+				enable = false;
+			}
+			if (buildModeInfo.sihcFilePath === undefined) {
+				enable = false;
+			}
+			if (buildModeInfo.sihaFilePath === undefined) {
+				enable = false;
+			}
+			if (!enable) {
+				reject();
+				return;
+			}
+			//
+			const device = this.micomDevice;
+			const cfgGenPath = cfgGen!.replace(/\\/g, "\\\\");
+			const cfgFilePath = this.cfgFilePath!.fsPath.replace(/\\/g, "\\\\");
+			const devicefilePath = devicefile!.replace(/\\/g, "\\\\");
+			const sitPath = buildModeInfo.sitFilePath!.fsPath.replace(/\\/g, "\\\\");
+			const sihcPath = buildModeInfo.sihcFilePath!.fsPath.replace(/\\/g, "\\\\");
+			const sihaPath = buildModeInfo.sihaFilePath!.fsPath.replace(/\\/g, "\\\\");
+			const cmmand = `"${cfgGenPath}" -cpu ${device} -devpath="${devicefilePath}" -i "${sitPath}" -dc "${sihcPath}" -da "${sihaPath}" "${cfgFilePath}"`;
+			//
+			outputChannel.appendLine("Build Start: " + cmmand);
+			//
+			const proc = child_process.spawn(
+				cfgGenPath,
+				[
+					`-cpu`, `${device}`,
+					`-devpath="${devicefilePath}"`,
+					`-i`, `"${sitPath}"`,
+					`-dc`, `"${sihcPath}"`,
+					`-da`, `"${sihaPath}"`,
+					cfgFilePath
+				]
+			);
+			proc.stdout.on("data", (log) => {
+				const msg = iconv.decode(log, "sjis");
+				outputChannel.append(msg);
+			});
+			proc.stderr.on("data", (log) => {
+				const msg = iconv.decode(log, "sjis");
+				outputChannel.append(msg);
+			});
+			// 途中終了:exit
+			/*
+			proc.on("exit", (code) => {
+				outputChannel.appendLine("");
+				outputChannel.appendLine("Build Treminated?");
+			});
+			*/
+			// 終了イベント
+			proc.on("close", (exitCode) => {
+				if (exitCode === 0) {
+					outputChannel.appendLine("");
+					outputChannel.appendLine("CFG gen Success!");
+				} else {
+					outputChannel.appendLine("");
+					outputChannel.appendLine("CFG gen Failed!");
 				}
 				buildModeInfo.building = false;
 				resolve();
@@ -179,10 +286,25 @@ export class MtpjInfo {
 			const instances = classInfos[i].Instance;
 			for (let instanceId = 0; instanceId < instances.length; instanceId++) {
 				const instance = instances[instanceId];
+				// File情報
+				if ("Type" in instance) {
+					const type = instance.Type[0];
+					if (type === "File") {
+						const name = instance.Name[0];
+						if (posix.extname(name) === ".cfg") {
+							const path = instance.RelativePath[0];
+							this.cfgFilePath = this._makeFilePath(this.projDirPath.path, path);
+							for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+								const buildModeInfo = this.buildModeInfos[buildModeId];
+								buildModeInfo.cfgFilePath = this.cfgFilePath;
+							}
+						}
+					}
+				}
 				// Device情報
 				if ("DeviceName" in instance) {
 					this.micomDevice = instance.DeviceName[0];
-					this.micomDeviceInfo = config.getRomArea(this.micomDevice);
+					this.micomDeviceInfo = config.getDeviceInfo(this.micomDevice);
 				}
 				// HexOption
 				// "HexOptionOutputFolder-DefaultValue" が存在したら、HexOptionのinstanceと判断する
@@ -199,7 +321,7 @@ export class MtpjInfo {
 						if (key in instance) {
 							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
 							buildModeInfo.hexFileName = outputFile;
-							buildModeInfo.hexFilePath = this._makeFilePath(buildModeInfo.hexOutputDir!, outputFile);
+							buildModeInfo.hexFilePath = this._makeFilePath(buildModeInfo.hexOutputDir!.path, outputFile);
 						}
 					}
 				}
@@ -218,8 +340,80 @@ export class MtpjInfo {
 						if (key in instance) {
 							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
 							buildModeInfo.mapFileName = outputFile;
-							buildModeInfo.mapFilePath = this._makeFilePath(buildModeInfo.linkOutputDir!, outputFile);
+							buildModeInfo.mapFilePath = this._makeFilePath(buildModeInfo.linkOutputDir!.path, outputFile);
 						}
+					}
+				}
+				// RTOS
+				// プロジェクトファイル内に1つだけ存在する
+				// ビルドモードごとの情報ではないが、ファイル生成先はビルドモードに依存するので個別に格納
+				// ConfigurationFile
+				if ("ConfigurationFile" in instance) {
+					// property作成
+					let hasRtosInfo = false;
+					const configFile = instance["ConfigurationFile"][0];
+					if (configFile === "Exist") {
+						hasRtosInfo = true;
+					}
+					this.hasRtosInfo = hasRtosInfo;
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						buildModeInfo.hasRtosInfo = hasRtosInfo;
+					}
+				}
+				if ("SitFolderName" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["SitFolderName"][0], buildModeInfo);
+						buildModeInfo.sitFolderName = value;
+					}
+				}
+				if ("SitFileName" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["SitFileName"][0], buildModeInfo);
+						buildModeInfo.sitFileName = value;
+						const path = this._makeProjRelPath(buildModeInfo.sitFolderName);
+						buildModeInfo.sitFilePath = this._makeFilePath(path.path, value);
+					}
+				}
+				if ("SihcFolderName" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["SihcFolderName"][0], buildModeInfo);
+						buildModeInfo.sihcFolderName = value;
+					}
+				}
+				if ("SihcFileName" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["SihcFileName"][0], buildModeInfo);
+						buildModeInfo.sihcFileName = value;
+						const path = this._makeProjRelPath(buildModeInfo.sihcFolderName);
+						buildModeInfo.sihcFilePath = this._makeFilePath(path.path, value);
+					}
+				}
+				if ("SihaFolderName" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["SihaFolderName"][0], buildModeInfo);
+						buildModeInfo.sihaFolderName = value;
+					}
+				}
+				if ("SihaFileName" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["SihaFileName"][0], buildModeInfo);
+						buildModeInfo.sihaFileName = value;
+						const path = this._makeProjRelPath(buildModeInfo.sihaFolderName);
+						buildModeInfo.sihaFilePath = this._makeFilePath(path.path, value);
 					}
 				}
 			}
@@ -256,8 +450,8 @@ export class MtpjInfo {
 	 * @param filePath 
 	 * @returns 
 	 */
-	private _makeFilePath(dirPath: vscode.Uri, filePath: string): vscode.Uri {
-		const absPath = posix.join(dirPath.path, filePath);
+	private _makeFilePath(dirPath: string, filePath: string): vscode.Uri {
+		const absPath = posix.join(dirPath, filePath);
 		return vscode.Uri.parse(absPath);
 	}
 
@@ -298,6 +492,18 @@ class BuildModeInfo {
 	public linkOutputDir?: vscode.Uri;
 	public mapFileName: string;
 	public mapFilePath?: vscode.Uri;
+	// RTOS情報
+	public cfgFilePath?: vscode.Uri;
+	public hasRtosInfo: boolean;
+	public sitFolderName: string;
+	public sitFileName: string;
+	public sitFilePath?: vscode.Uri;
+	public sihcFolderName: string;
+	public sihcFileName: string;
+	public sihcFilePath?: vscode.Uri;
+	public sihaFolderName: string;
+	public sihaFileName: string;
+	public sihaFilePath?: vscode.Uri;
 	// ビルド情報
 	public buildStatus?: string;
 	public ramSize?: number;
@@ -327,6 +533,14 @@ class BuildModeInfo {
 		this.hexFileName = "";
 		this.mapFileName = "";
 		this.enableOutputFile = false;
+		//
+		this.hasRtosInfo = false;
+		this.sitFolderName = "";
+		this.sitFileName = "";
+		this.sihcFolderName = "";
+		this.sihcFileName = "";
+		this.sihaFolderName = "";
+		this.sihaFileName = "";
 	}
 
 	public initBuildInfo() {

@@ -111,14 +111,16 @@ table tbody tr td {
 	border-bottom: 1px solid slategray;
 }
 table thead tr th.property {
-	width: 100px;
+	min-width: 100px;
+	width: auto;
 	/*border: 1px solid snow;*/
 }
 table thead tr th.data {
 	width: 400px;
 }
 table tbody tr td.property {
-	width: 100px;
+	min-width: 100px;
+	width: auto;
 	color: var(--vscode-textPreformat-foreground);
 }
 table tbody tr td.data {
@@ -131,11 +133,13 @@ table.build-status {
 }
 table.build-status tr th.property,
 table.build-status tr td.property  {
-	width: 100px;
+	min-width: 100px;
+	width: auto;
 }
 table.build-status tr th.data,
 table.build-status tr td.data  {
-	width: 150px;
+	min-width: 150px;
+	width: auto;
 }
 
 

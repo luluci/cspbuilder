@@ -62,7 +62,7 @@ export class Configuration {
 		for (const key of Reflect.ownKeys(confConfigurator)) {
 			this.path.cc.configurator.set(key2str(key), confConfigurator[key]);
 		}
-		const confDevicefile = conf.path.CC.RTOS.Devicefile;
+		const confDevicefile = conf.path.CC.Devicefile;
 		for (const key of Reflect.ownKeys(confDevicefile)) {
 			this.path.cc.devicefile.set(key2str(key), confDevicefile[key]);
 		}

@@ -21,6 +21,11 @@
 			{
 				"title": "CS+ Builder",
 				"properties": {
+					"cspBuilder.BuildMode.DefaultDeactive": {
+						"type": "string",
+						"default": "DefaultBuild",
+						"description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
+					},
 					"cspBuilder.path.CC.CSPlus": {
 						"type": "string",
 						"default": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\CubeSuite+.exe",
@@ -38,7 +43,7 @@
 							}
 						}
 					},
-					"cspBuilder.path.CC.RTOS.Devicefile": {
+					"cspBuilder.path.CC.Devicefile": {
 						"type": "object",
 						"description": "[CS+ for CC] デバイスファイルフォルダへのパスを設定",
 						"default": {
@@ -49,11 +54,6 @@
 								"type": "string"
 							}
 						}
-					},
-					"cspBuilder.BuildMode.DefaultDeactive": {
-						"type": "string",
-						"default": "DefaultBuild",
-						"description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
 					},
 					"cspBuilder.Micom.RL78": {
 						"type": "object",

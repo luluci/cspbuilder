@@ -31,16 +31,28 @@
 						"default": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\CubeSuite+.exe",
 						"description": "[CS+ for CC] CubeSuite+.exe へのパスを設定"
 					},
+					"cspBuilder.path.CC.RTOS.dir": {
+						"type": "object",
+						"description": "[CS+ for CC] RTOSコンフィグレータ へのパスを設定",
+						"default": {
+							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4",
+							"RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4"
+						},
+						"properties": {
+							"RL78": { "type": "string" },
+							"RX": { "type": "string" }
+						}
+					},
 					"cspBuilder.path.CC.RTOS.Configurator": {
 						"type": "object",
 						"description": "[CS+ for CC] RTOSコンフィグレータ へのパスを設定",
 						"default": {
-							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4\\bin\\cf78v4.exe"
+							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4\\bin\\cf78v4.exe",
+							"RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4\\bin600\\cfg600.exe"
 						},
 						"properties": {
-							"RL78": {
-								"type": "string"
-							}
+							"RL78": { "type": "string" },
+							"RX": { "type": "string" }
 						}
 					},
 					"cspBuilder.path.CC.Devicefile": {
@@ -61,9 +73,16 @@
 							"R5F101SL": "1"
 						},
 						"properties": {
-							"R5F101SL": {
-								"type": "string"
-							}
+							"R5F101SL": { "type": "string" }
+						}
+					},
+					"cspBuilder.Micom.RX": {
+						"type": "object",
+						"default": {
+							"R5F572TFAxFP": "1"
+						},
+						"properties": {
+							"R5F572TFAxFP": { "type": "string" }
 						}
 					},
 					"cspBuilder.Micom.ROMArea": {

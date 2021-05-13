@@ -21,7 +21,7 @@ export class MtpjInfo {
 	public hasRtosInfo: boolean;
 	public cfgFilePath?: vscode.Uri;
 	// プロジェクト情報
-	public micomSeries: string;
+	//public micomSeries: string;
 	public micomDevice: string;
 	public micomDeviceInfo?: DeviceInfo;
 
@@ -39,7 +39,7 @@ export class MtpjInfo {
 		//
 		this.hasRtosInfo = false;
 		//
-		this.micomSeries = "";
+		//this.micomSeries = "";
 		this.micomDevice = "";
 	}
 
@@ -91,7 +91,15 @@ export class MtpjInfo {
 		if (this.enable) {
 			const buildModeInfo = this.buildModeInfos[buildModeId];
 			buildModeInfo.building = true;
-			await this._cfgGen(buildModeInfo, outputChannel);
+			switch (this.micomDeviceInfo!.series) {
+				case "RL78":
+					await this._cfgGenRl78(buildModeInfo, outputChannel);
+					break;
+				case "RX":
+					break;
+				default:
+					throw new Error(`unknown micom series "${this.micomDeviceInfo!.series}", not detect Configurator!`);
+			}
 		} else {
 			throw new Error("This Project is disabled!");
 		}
@@ -144,7 +152,7 @@ export class MtpjInfo {
 	 * @param outputChannel 
 	 * @returns 
 	 */
-	private _cfgGen(buildModeInfo: BuildModeInfo, outputChannel: vscode.OutputChannel): Promise<void> {
+	private _cfgGenRl78(buildModeInfo: BuildModeInfo, outputChannel: vscode.OutputChannel): Promise<void> {
 		return new Promise((resolve, reject) => {
 			let enable = true;
 			// CFGファイルジェネレート有効判定

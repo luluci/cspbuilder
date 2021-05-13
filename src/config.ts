@@ -14,11 +14,13 @@ export class DeviceInfo {
 
 class CSPlusToolPath {
 	public csplus: string;
+	public rtos: Map<string, string>;
 	public configurator: Map<string, string>;
 	public devicefile: Map<string, string>;
 
 	constructor() {
 		this.csplus = "";
+		this.rtos = new Map<string, string>();
 		this.configurator = new Map<string, string>();
 		this.devicefile = new Map<string, string>();
 	}
@@ -57,11 +59,17 @@ export class Configuration {
 		// CS+ for CC
 		// CubeSuite+.exe
 		this.path.cc.csplus = conf.path.CC.CSPlus;
+		// RTOS dir
+		const confRtos = conf.path.CC.RTOS.dir;
+		for (const key of Reflect.ownKeys(confRtos)) {
+			this.path.cc.rtos.set(key2str(key), confRtos[key]);
+		}
 		// RTOS Configurator
 		const confConfigurator = conf.path.CC.RTOS.Configurator;
 		for (const key of Reflect.ownKeys(confConfigurator)) {
 			this.path.cc.configurator.set(key2str(key), confConfigurator[key]);
 		}
+		// Devicefile
 		const confDevicefile = conf.path.CC.Devicefile;
 		for (const key of Reflect.ownKeys(confDevicefile)) {
 			this.path.cc.devicefile.set(key2str(key), confDevicefile[key]);
@@ -81,6 +89,19 @@ export class Configuration {
 			}
 			// deviceにseries登録
 			device!.series = "RL78";
+		}
+		// RX
+		const confDeviceRX = conf.Micom.RX;
+		for (const key of Reflect.ownKeys(confDeviceRX)) {
+			// device情報取得
+			let device = this.device.get(key2str(key));
+			if (device === undefined) {
+				// device情報未作成なら作成する
+				this.device.set(key2str(key), new DeviceInfo());
+				device = this.device.get(key2str(key));
+			}
+			// deviceにseries登録
+			device!.series = "RX";
 		}
 		// ROMエリア定義
 		const confROMArea = conf.Micom.ROMArea;

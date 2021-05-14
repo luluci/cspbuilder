@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { posix } from 'path';
 
 export class DeviceInfo {
 	public series: string;
@@ -17,6 +18,8 @@ class CSPlusToolPath {
 	public rtos: Map<string, string>;
 	public configurator: Map<string, string>;
 	public devicefile: Map<string, string>;
+	// RX
+	public rtosLib600?: vscode.Uri;
 
 	constructor() {
 		this.csplus = "";
@@ -62,7 +65,19 @@ export class Configuration {
 		// RTOS dir
 		const confRtos = conf.path.CC.RTOS.dir;
 		for (const key of Reflect.ownKeys(confRtos)) {
-			this.path.cc.rtos.set(key2str(key), confRtos[key]);
+			const series = key2str(key);
+			const dir: string = confRtos[key];
+			// RTOSディレクトリ
+			this.path.cc.rtos.set(series, dir);
+			// RTOS周辺パス
+			switch (series) {
+				case "RX":
+					// RTOS各種ディレクトリへのパスを作成
+					// lib600
+					const path = posix.join(dir, "lib600");
+					this.path.cc.rtosLib600 = vscode.Uri.parse(posix.join("/", dir, "lib600"));
+					break;
+			}
 		}
 		// RTOS Configurator
 		const confConfigurator = conf.path.CC.RTOS.Configurator;

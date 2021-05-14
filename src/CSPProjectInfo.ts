@@ -96,6 +96,10 @@ export class MtpjInfo {
 					await this._cfgGenRl78(buildModeInfo, outputChannel);
 					break;
 				case "RX":
+					// 出力先フォルダチェック
+					await this._makeDir(buildModeInfo.buildModeDirPath);
+					// RTOSファイル生成
+					await this._cfgGenRx(buildModeInfo, outputChannel);
 					break;
 				default:
 					throw new Error(`unknown micom series "${this.micomDeviceInfo!.series}", not detect Configurator!`);
@@ -245,6 +249,83 @@ export class MtpjInfo {
 		});
 	}
 
+	private _cfgGenRx(buildModeInfo: BuildModeInfo, outputChannel: vscode.OutputChannel): Promise<void> {
+		return new Promise((resolve, reject) => {
+			let enable = true;
+			// CFGファイルジェネレート有効判定
+			if (!buildModeInfo.hasRtosInfo) {
+				enable = false;
+			}
+			if (this.cfgFilePath === undefined) {
+				enable = false;
+			}
+			const series = this.micomDeviceInfo!.series;
+			const cfgGen = config.path.cc.configurator.get(series);
+			if (cfgGen === undefined) {
+				enable = false;
+			}
+			const libPath = config.path.cc.rtosLib600;
+			if (libPath === undefined) {
+				enable = false;
+			}
+			if (!enable) {
+				reject();
+				return;
+			}
+			//
+			const device = this.micomDevice;
+			const cfgGenPath = cfgGen!;
+			const cfgFilePath = this.cfgFilePath!.fsPath;
+			const rtosLibPath = libPath!.fsPath;
+			const outputPath = buildModeInfo.buildModeDirPath.fsPath;
+			const cmmand = `""${cfgGenPath}" -V "${cfgFilePath}""`;
+			//
+			outputChannel.appendLine("Build Start: " + cmmand);
+			//
+			const proc = child_process.spawn(
+				"cmd",
+				[
+					"/C",
+					cmmand
+				],
+				{
+					'shell': true,
+					cwd: outputPath,
+					env: {
+						LIB600: rtosLibPath
+					}
+				}
+			);
+			proc.stdout.on("data", (log) => {
+				const msg = iconv.decode(log, "sjis");
+				outputChannel.append(msg);
+			});
+			proc.stderr.on("data", (log) => {
+				const msg = iconv.decode(log, "sjis");
+				outputChannel.append(msg);
+			});
+			// 途中終了:exit
+			/*
+			proc.on("exit", (code) => {
+				outputChannel.appendLine("");
+				outputChannel.appendLine("Build Treminated?");
+			});
+			*/
+			// 終了イベント
+			proc.on("close", (exitCode) => {
+				if (exitCode === 0) {
+					outputChannel.appendLine("");
+					outputChannel.appendLine("CFG gen Success!");
+				} else {
+					outputChannel.appendLine("");
+					outputChannel.appendLine("CFG gen Failed!");
+				}
+				buildModeInfo.building = false;
+				resolve();
+			});
+		});
+	}
+
 	private async _loadProjectFile() {
 		// mtpjをjson形式に変換
 		const xml = await vscode.workspace.openTextDocument(this.projFilePath);
@@ -283,7 +364,7 @@ export class MtpjInfo {
 						if (buildModeTag in instance) {
 							const buildModeStr = instance[buildModeTag][0];
 							const buildMode = Buffer.from(buildModeStr, 'base64').toString('utf16le');
-							const buildModeInfo = new BuildModeInfo(this.id, buildModeId, buildMode);
+							const buildModeInfo = new BuildModeInfo(this.id, buildModeId, buildMode, this.projDirPath);
 							buildModeInfo.projectName = this.projName;
 							// BuildModeInfo登録
 							this.buildModeInfos.push(buildModeInfo);
@@ -492,6 +573,18 @@ export class MtpjInfo {
 			}
 		}
 	}
+
+	private async _makeDir(path: vscode.Uri) {
+		try {
+			// ディレクトリ存在チェック
+			const stat = await vscode.workspace.fs.stat(path);
+			// OKならディレクトリが存在するので何もしない
+		} catch (e) {
+			// 例外送出:ディレクトリ未作成
+			// ディレクトリを作成する
+			await vscode.workspace.fs.createDirectory(path);
+		}
+	}
 }
 
 class BuildModeInfo {
@@ -500,6 +593,8 @@ class BuildModeInfo {
 	public projectName: string;
 	public absFile: string;
 	public hexFile: string;
+	// デフォルトパス設定
+	public buildModeDirPath: vscode.Uri;		// デフォルトアウトプットパス：projDir/%BuildMode% 
 	// Hex
 	public hexOutputDir?: vscode.Uri;
 	public hexFileName: string;
@@ -540,7 +635,7 @@ class BuildModeInfo {
 	// mapファイル解析正規表現
 	static reMapFileDate = /Renesas Optimizing Linker \([^\)]+\)\s+(.+)/;
 
-	constructor(public projId: number, public buildModeId: number, public buildMode: string) {
+	constructor(public projId: number, public buildModeId: number, public buildMode: string, public projDirPath: vscode.Uri) {
 		this.enable = true;
 		this.building = false;
 		this.projectName = "";
@@ -549,6 +644,8 @@ class BuildModeInfo {
 		this.hexFileName = "";
 		this.mapFileName = "";
 		this.enableOutputFile = false;
+		// デフォルトパス設定
+		this.buildModeDirPath = vscode.Uri.parse(posix.join(projDirPath.path, buildMode));
 		//
 		this.hasRtosInfo = false;
 		this.sitFolderName = "";

@@ -496,12 +496,12 @@ export class CSPBuilderPanel {
 					this._webViewHtmlProjQuickView += `
 						<tr>
 							<td class="checkbox">
-								<input type="checkbox" class="build-tgt-checkbox" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
+								<input type="checkbox" class="build-tgt-checkbox" id="build-tgt-checkbox_quickview_${buildId}" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
 							</td>
 							<td class="proj-file">
 								${prjFile}
 							</td>
-							<td class="build-mode">${buildMode.buildMode}</td>
+							<td class="build-mode"><a href="#BuildMode_${buildModeId}">${buildMode.buildMode}</a></td>
 							<td class="output-dir">${buildMode.releaseTagDirPathDisp}</td>
 							<td class="output-file">${buildMode.releaseHexFileName}</td>
 						</tr>
@@ -630,9 +630,9 @@ export class CSPBuilderPanel {
 						}
 						// html生成
 						this._webViewHtmlProjFileInfo += `
-						<div class="build_mode_container">
+						<div class="build_mode_container" id="BuildMode_${buildModeId}">
 							<div class="build-tgt">
-								<input type="checkbox" class="build-tgt-checkbox" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
+								<input type="checkbox" class="build-tgt-checkbox" id="build-tgt-checkbox_detail_${buildId}" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
 							</div>
 							<div class="build-status">
 								<table class="build-status">

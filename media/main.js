@@ -12,6 +12,13 @@
 			if (elem) {
 				state = elem.checked;
 			}
+			// GUI同期
+			let sameIdElem;
+			sameIdElem = document.getElementById(`build-tgt-checkbox_detail_${prjId}_${buildModeId}`);
+			sameIdElem.checked = state;
+			sameIdElem = document.getElementById(`build-tgt-checkbox_quickview_${prjId}_${buildModeId}`);
+			sameIdElem.checked = state;
+			//
 			vscode.postMessage({
 				command: 'onClickCheckBuidModeTgt',
 				prjId: prjId,

@@ -49,6 +49,32 @@ export class MtpjInfo {
 		await this._loadProjectFile();
 	}
 
+	/**
+	 * リリース用情報を設定する
+	 * @param releaseDir 
+	 * @param releaseTag 
+	 */
+	public async setReleaseInfo(releaseDirName: string, releaseTag: string) {
+		// ビルドモード毎に設定
+		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+			const buildMode = this.buildModeInfos[buildModeId];
+			// release先パス作成
+			const baseDir = this.projDirPath.path;
+			const releaseDir = posix.join(baseDir, releaseDirName);
+			const releaseTagDir = posix.join(releaseDir, releaseTag);
+			buildMode.releaseDirPath = vscode.Uri.parse(releaseDir);
+			buildMode.releaseDirPathDisp = `/${releaseDirName}`;
+			buildMode.releaseTagDirPath = vscode.Uri.parse(releaseTagDir);
+			buildMode.releaseTagDirPathDisp = `/${releaseDirName}/${releaseTag}`;
+			// 
+			const buildModeName = buildMode.buildMode;
+			const hexExt = posix.extname(buildMode.hexFileName);
+			const hexName = posix.basename(buildMode.hexFileName, hexExt);
+			buildMode.releaseHexFileName = `${hexName}_${buildModeName}_${releaseTag}${hexExt}`;
+			buildMode.releaseHexFilePath = vscode.Uri.parse(posix.join(releaseTagDir, buildMode.releaseHexFileName));
+		}
+	}
+
 	public building(buildModeId: number = -1): boolean {
 		if (buildModeId === -1) {
 			let result = true;
@@ -278,7 +304,15 @@ export class MtpjInfo {
 			const cfgFilePath = this.cfgFilePath!.fsPath;
 			const rtosLibPath = libPath!.fsPath;
 			const outputPath = buildModeInfo.buildModeDirPath.fsPath;
-			const cmmand = `""${cfgGenPath}" -V "${cfgFilePath}""`;
+			let uopt = "";
+			if (buildModeInfo.cfgUOption) {
+				uopt = "-U";
+			}
+			let vopt = "";
+			if (buildModeInfo.cfgVOption) {
+				vopt = "-V";
+			}
+			const cmmand = `""${cfgGenPath}" ${uopt} ${vopt} "${cfgFilePath}""`;
 			//
 			outputChannel.appendLine("Build Start: " + cmmand);
 			//
@@ -366,6 +400,12 @@ export class MtpjInfo {
 							const buildMode = Buffer.from(buildModeStr, 'base64').toString('utf16le');
 							const buildModeInfo = new BuildModeInfo(this.id, buildModeId, buildMode, this.projDirPath);
 							buildModeInfo.projectName = this.projName;
+							// デフォルトビルド対象設定
+							if (config.defaultDeactive.includes(buildMode)) {
+								buildModeInfo.buildTgt = false;
+							} else {
+								buildModeInfo.buildTgt = true;
+							}
 							// BuildModeInfo登録
 							this.buildModeInfos.push(buildModeInfo);
 						}
@@ -415,6 +455,23 @@ export class MtpjInfo {
 							buildModeInfo.hexOutputDir = this._makeProjRelPath(outputFolder);
 						}
 						key = `HexOptionOutputFileName-${buildModeId}`;
+						if (key in instance) {
+							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
+							buildModeInfo.hexFileName = outputFile;
+							buildModeInfo.hexFilePath = this._makeFilePath(buildModeInfo.hexOutputDir!.path, outputFile);
+						}
+					}
+				}
+				if ("LinkOptionConvertFileName-DefaultValue" in instance) {
+					let key: string;
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						key = `LinkOptionConvertFolder-${buildModeId}`;
+						if (key in instance) {
+							const outputFolder = this._getProperty(instance[key][0], buildModeInfo);
+							buildModeInfo.hexOutputDir = this._makeProjRelPath(outputFolder);
+						}
+						key = `LinkOptionConvertFileName-${buildModeId}`;
 						if (key in instance) {
 							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
 							buildModeInfo.hexFileName = outputFile;
@@ -513,6 +570,30 @@ export class MtpjInfo {
 						buildModeInfo.sihaFilePath = this._makeFilePath(path.path, value);
 					}
 				}
+				if ("ConfiguratorUOption" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["ConfiguratorUOption"][0], buildModeInfo);
+						if (value === "InterruptVectorNumberPassed") {
+							buildModeInfo.cfgUOption = true;
+						} else {
+							buildModeInfo.cfgUOption = false;
+						}
+					}
+				}
+				if ("ConfiguratorVOption" in instance) {
+					// ビルドモードに情報設定
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						const value = this._getProperty(instance["ConfiguratorVOption"][0], buildModeInfo);
+						if (value === "MakingSituationDisplayed") {
+							buildModeInfo.cfgVOption = true;
+						} else {
+							buildModeInfo.cfgVOption = false;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -593,8 +674,17 @@ class BuildModeInfo {
 	public projectName: string;
 	public absFile: string;
 	public hexFile: string;
+	public buildTgt: boolean;
 	// デフォルトパス設定
 	public buildModeDirPath: vscode.Uri;		// デフォルトアウトプットパス：projDir/%BuildMode% 
+	// RELEASEアウトプットパス
+	public releaseDirPath?: vscode.Uri;			// release共通ディレクトリパス: projDir/release
+	public releaseTagDirPath?: vscode.Uri;		// Tag付けディレクトリパス: <releaseDirPath>/<ReleaseTag>
+	public releaseHexFilePath?: vscode.Uri;		// hex
+	// RELEASEアウトプットパス(表示用相対パス文字列)
+	public releaseDirPathDisp?: string;
+	public releaseTagDirPathDisp?: string;
+	public releaseHexFileName?: string;
 	// Hex
 	public hexOutputDir?: vscode.Uri;
 	public hexFileName: string;
@@ -606,6 +696,7 @@ class BuildModeInfo {
 	// RTOS情報
 	public cfgFilePath?: vscode.Uri;
 	public hasRtosInfo: boolean;
+	// RTOS情報: RL78
 	public sitFolderName: string;
 	public sitFileName: string;
 	public sitFilePath?: vscode.Uri;
@@ -615,6 +706,9 @@ class BuildModeInfo {
 	public sihaFolderName: string;
 	public sihaFileName: string;
 	public sihaFilePath?: vscode.Uri;
+	// RTOS情報: RX
+	public cfgUOption: boolean;
+	public cfgVOption: boolean;
 	// ビルド情報
 	public buildStatus?: string;
 	public ramSize?: number;
@@ -637,6 +731,7 @@ class BuildModeInfo {
 
 	constructor(public projId: number, public buildModeId: number, public buildMode: string, public projDirPath: vscode.Uri) {
 		this.enable = true;
+		this.buildTgt = true;
 		this.building = false;
 		this.projectName = "";
 		this.absFile = "";
@@ -654,6 +749,8 @@ class BuildModeInfo {
 		this.sihcFileName = "";
 		this.sihaFolderName = "";
 		this.sihaFileName = "";
+		this.cfgUOption = false;
+		this.cfgVOption = false;
 	}
 
 	public initBuildInfo() {

@@ -20,6 +20,7 @@ export class CSPBuilderPanel {
 	// 
 	private _webViewHtmlHeader?: string;
 	private _webViewHtmlCommonInfo?: string;
+	private _webViewHtmlProjQuickView?: string;
 	private _webViewHtmlProjFileInfo?: string;
 
 	private static getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
@@ -70,7 +71,7 @@ export class CSPBuilderPanel {
 		this._panel.onDidChangeViewState(
 			e => {
 				if (this._panel.visible) {
-					//this._update();
+					this._update();
 				}
 			},
 			null,
@@ -130,7 +131,7 @@ export class CSPBuilderPanel {
 		// BuildModeInfo取得
 		const buildModeInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
 		// 有効無効切り替え
-		buildModeInfo.enable = state;
+		buildModeInfo.buildTgt = state;
 	}
 
 	private async _onClickButtonBuild(prjId: number, buildModeId: number) {
@@ -200,8 +201,8 @@ export class CSPBuilderPanel {
 		const wsInfo = this._wsInfo[0];
 		//
 		switch (type) {
-			case 'version':
-				wsInfo.version(value);
+			case 'release_tag':
+				wsInfo.releaseTag = value;
 				break;
 		}
 	}
@@ -370,6 +371,7 @@ export class CSPBuilderPanel {
 		// html部品生成
 		const header = this._getHtmlForWebviewHeader();
 		const tblCommonInfo = this._getHtmlForWebviewCommonInfo(wsList);
+		const tblQuickView = this._getHtmlForWebviewProjQuickView(wsList);
 		const tblProjFileInfo = this._getHtmlForWebviewProjFileInfo(wsList);
 		// html結合
 		return `
@@ -385,9 +387,8 @@ export class CSPBuilderPanel {
 					<button type="button" class="release-button">RELEASE</button>
 				</div>
 			</div>
-			<h2>Project Common Info</h2>
 			${tblCommonInfo}
-			<h2>Project Files Info</h2>
+			${tblQuickView}
 			${tblProjFileInfo}
 
 			<script nonce="${this._nonce}" src="${scriptUri}"></script>
@@ -425,6 +426,7 @@ export class CSPBuilderPanel {
 			const wsInfo = wsList[0];
 			//
 			this._webViewHtmlCommonInfo = `
+			<h2>Project Common Info</h2>
 			<table>
 				<thead>
 					<tr>
@@ -438,9 +440,9 @@ export class CSPBuilderPanel {
 						<td class="data">${wsInfo.rootPath.path}</td>
 					</tr>
 					<tr>
-						<td class="property">Version</td>
+						<td class="property">Release Tag</td>
 						<td class="data">
-							<input type="text" class="data-input-common" data-type="version" />
+							<input type="text" class="data-input-common" data-type="release_tag" value="${wsInfo.releaseTag}" />
 						</td>
 					</tr>
 				</tbody>
@@ -450,12 +452,76 @@ export class CSPBuilderPanel {
 		return this._webViewHtmlCommonInfo;
 	}
 
+	private _getHtmlForWebviewProjQuickView(wsList: Array<CSPWorkspaceInfo>): string {
+		// 先頭要素のみ使用する
+		const wsInfo = wsList[0];
+		// html初期化
+		this._webViewHtmlProjQuickView = "";
+		// プロジェクトファイル/BuildMode 一覧表を作成
+		for (let prjId = 0; prjId < wsInfo.projInfos.length; prjId++) {
+			const prjInfo = wsInfo.projInfos[prjId];
+			const prjFileName = prjInfo.projFileName;
+			// プロジェクトファイルキャプション
+			this._webViewHtmlProjQuickView += `<h2 class="prj-quick-view">Project Quick View</h2>`;
+			// Table Header生成
+			this._webViewHtmlProjQuickView += `<table class="prj-quick-view">`;
+			this._webViewHtmlProjQuickView += `
+				<thead>
+					<tr>
+						<th class="checkbox">Tgt</th>
+						<th class="proj-file">ProjFile</th>
+						<th class="build-mode">BuildMode</th>
+						<th class="output-dir">OutputDir</th>
+						<th class="output-file">OutputFile</th>
+					</tr>
+				</thead>`;
+			this._webViewHtmlProjQuickView += `<tbody>`;
+			// html生成
+			if (prjInfo.buildModeInfos.length > 0) {
+				for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
+					const buildMode = prjInfo.buildModeInfos[buildModeId];
+					const buildId = prjId + "_" + buildModeId;
+					// 設定取得
+					// check設定
+					let checked = 'checked="checked"';
+					if (buildMode.buildTgt === false) {
+						checked = '';
+					}
+					// ProjFile
+					let prjFile = "";
+					if (buildModeId === 0) {
+						prjFile = prjFileName;
+					}
+					// html
+					this._webViewHtmlProjQuickView += `
+						<tr>
+							<td class="checkbox">
+								<input type="checkbox" class="build-tgt-checkbox" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
+							</td>
+							<td class="proj-file">
+								${prjFile}
+							</td>
+							<td class="build-mode">${buildMode.buildMode}</td>
+							<td class="output-dir">${buildMode.releaseTagDirPathDisp}</td>
+							<td class="output-file">${buildMode.releaseHexFileName}</td>
+						</tr>
+					`;
+				}
+			}
+			this._webViewHtmlProjQuickView += `</tbody>`;
+			this._webViewHtmlProjQuickView += `</table>`;
+		}
+		return this._webViewHtmlProjQuickView;
+	}
+
 	private _getHtmlForWebviewProjFileInfo(wsList: Array<CSPWorkspaceInfo>): string {
 		//if (!this._webViewHtmlProjFileInfo) {
 			// 先頭要素のみ使用する
 			const wsInfo = wsList[0];
 			// html初期化
-			this._webViewHtmlProjFileInfo = "";
+			this._webViewHtmlProjFileInfo = `
+				<h2>Project Files Detail Info</h2>
+			`;
 			// プロジェクトファイル毎にhtml作成
 			for (let prjId = 0; prjId < wsInfo.projInfos.length; prjId++) {
 				const prjInfo = wsInfo.projInfos[prjId];
@@ -466,7 +532,7 @@ export class CSPBuilderPanel {
 					romArea = toHex(prjInfo.micomDeviceInfo.romAreaBegin, 8) + ":" + toHex(prjInfo.micomDeviceInfo.romAreaEnd, 8);
 				}
 				// プロジェクトファイルキャプション
-				this._webViewHtmlProjFileInfo += `<h3>${prjFileName}</h3>`;
+				this._webViewHtmlProjFileInfo += `<h3 class="prj-file">${prjFileName}</h3>`;
 				// BuildMode毎のhtml生成
 				if (prjInfo.buildModeInfos.length > 0) {
 					for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
@@ -474,7 +540,7 @@ export class CSPBuilderPanel {
 						const buildId = prjId + "_" + buildModeId;
 						// check設定
 						let checked = 'checked="checked"';
-						if (config.defaultDeactive.includes(buildMode.buildMode)) {
+						if (buildMode.buildTgt === false) {
 							checked = '';
 						}
 						// 表示データ作成
@@ -696,16 +762,13 @@ class CSPWorkspaceInfo {
 	// プロジェクトファイル情報リスト(複数ファイルを想定)
 	public projInfos: Array<MtpjInfo>;
 	// プロジェクト共通情報
-	private _version: string;
+	public releaseDirName: string;
+	public releaseTag: string;
 
 	constructor(public rootPath: vscode.Uri) {
 		this.projInfos = [];
-		this._version = "";
-	}
-
-	public version(value: string) {
-		// 必要に応じて整形処理を入れる
-		this._version = value;
+		this.releaseDirName = "release";
+		this.releaseTag = "vXXXX";
 	}
 
 	public async analyze(outputChannel: vscode.OutputChannel) {
@@ -721,6 +784,7 @@ class CSPWorkspaceInfo {
 					const fileUri = vscode.Uri.parse(posix.join(this.rootPath.path, name));
 					const inf = new MtpjInfo(projId, fileUri);
 					await inf.analyze(outputChannel);
+					await inf.setReleaseInfo(this.releaseDirName, this.releaseTag);
 					this.projInfos.push(inf);
 				}
 			}

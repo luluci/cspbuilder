@@ -33,7 +33,7 @@
 					},
 					"cspBuilder.path.CC.RTOS.dir": {
 						"type": "object",
-						"description": "[CS+ for CC] RTOSコンフィグレータ へのパスを設定",
+						"description": "[CS+ for CC] RTOSインストールディレクトリへのパスを設定",
 						"default": {
 							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4",
 							"RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4"

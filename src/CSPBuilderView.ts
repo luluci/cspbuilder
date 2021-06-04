@@ -181,7 +181,7 @@ export class CSPBuilderPanel {
 				// BuildModeを全部チェック
 				for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
 					const buildModeInfo = prjInfo.buildModeInfos[buildModeId];
-					if (buildModeInfo.enable) {
+					if (buildModeInfo.buildTgt) {
 						// 有効であればビルド実行
 						await this._release(prjId, buildModeId);
 					}
@@ -216,8 +216,8 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.build(buildModeId, this._outputChannel);
-			//this._updateHtmlBuildFinish(prjId, buildModeId);
-			this._update();
+			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._update();
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);
@@ -233,8 +233,8 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			//this._updateHtmlBuildFinish(prjId, buildModeId);
-			this._update();
+			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._update();
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("ReBuild task terminated: " + e);
@@ -250,8 +250,8 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.cfgGen(buildModeId, this._outputChannel);
-			//this._updateHtmlBuildFinish(prjId, buildModeId);
-			this._update();
+			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._update();
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("CFG gen task terminated: " + e);
@@ -267,8 +267,8 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			//this._updateHtmlBuildFinish(prjId, buildModeId);
-			this._update();
+			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._update();
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Build task terminated: " + e);

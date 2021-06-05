@@ -498,6 +498,27 @@ export class MtpjInfo {
 						}
 					}
 				}
+				// "LinkOptionCommandLine-DefaultValue"
+				if ("LinkOptionCommandLine-DefaultValue" in instance) {
+					let key: string;
+					for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+						const buildModeInfo = this.buildModeInfos[buildModeId];
+						key = `LinkOptionCommandLine-${buildModeId}`;
+						if (key in instance) {
+							const options = instance[key][0].split(/\r?\n/);
+							for (const optStr of options) {
+								const opt = optStr.split('=');
+								if (opt.length >= 2) {
+									switch (opt[0]) {
+										case '-list':
+											const outputFile = this._getProperty(opt[1], buildModeInfo);
+											buildModeInfo.mapFilePath = this._makeProjRelPath(outputFile);
+									}
+								}
+							}
+						}
+					}
+				}
 				// RTOS
 				// プロジェクトファイル内に1つだけ存在する
 				// ビルドモードごとの情報ではないが、ファイル生成先はビルドモードに依存するので個別に格納

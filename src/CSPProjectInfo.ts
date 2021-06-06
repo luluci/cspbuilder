@@ -5,6 +5,7 @@ import * as xml2js from 'xml2js';
 import * as iconv from 'iconv-lite';
 
 import { DeviceInfo, config } from './config';
+import { factoryHexTextFile } from './lib/hex-text-file/util';
 
 /**
  * mtpjファイル情報管理
@@ -374,6 +375,8 @@ export class MtpjInfo {
 		// 各種ファイルの存在チェック
 		await this._outputFileCheck();
 		await this._loadMapFile();
+		// その他情報取得
+		//await this._calcChecksum();
 	}
 	private async _loadProjectFileFirst(json: any) {
 		// 情報取得
@@ -685,6 +688,24 @@ export class MtpjInfo {
 			// 例外送出:ディレクトリ未作成
 			// ディレクトリを作成する
 			await vscode.workspace.fs.createDirectory(path);
+		}
+	}
+
+	private async _calcChecksum() {
+		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+			const buildModeInfo = this.buildModeInfos[buildModeId];
+			if (buildModeInfo.enableOutputFile) {
+				// hex/motからチェックサム計算
+				const text = await vscode.workspace.openTextDocument(buildModeInfo.hexFilePath!);
+				//
+				const firstLine = text.lineAt(0).text;
+				const hexfile = factoryHexTextFile(firstLine);
+				//
+				for (let lineNo = 0; lineNo < text.lineCount; lineNo++) {
+					hexfile.parse(text.lineAt(lineNo).text);
+				}
+				let checksum = hexfile.checksum(0xFF, 0x0000, 0x7FFF);
+			}
 		}
 	}
 }

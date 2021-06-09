@@ -114,14 +114,18 @@
 		const buildStatus = document.getElementById(buildStatusId);
 		const currElem = buildStatus.querySelector("span");
 		const newElem = document.createElement("span");
-		if (message.buildStatus === "Success") {
-			newElem.className = "BuildSuccess";
-			newElem.textContent = "Success";
-		} else if (message.buildStatus === "prebuild") {
-			newElem.textContent = "prebuild";
-		} else {
-			newElem.className = "BuildFailed";
-			newElem.textContent = "Failed";
+		switch (message.buildStatus) {
+			case "Success":
+				newElem.className = "BuildSuccess";
+				newElem.textContent = "Success";
+				break;
+			case "Failed":
+				newElem.className = "BuildFailed";
+				newElem.textContent = "Failed";
+				break;
+			default:
+				newElem.textContent = message.buildStatus;
+				break;
 		}
 		buildStatus.replaceChild(newElem, currElem);
 		// RAM size

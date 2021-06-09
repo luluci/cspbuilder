@@ -13,6 +13,14 @@ export class DeviceInfo {
 	}
 }
 
+export class MicomInfo {
+	public blank: number;
+
+	constructor() {
+		this.blank = 0;
+	}
+}
+
 class CSPlusToolPath {
 	public csplus: string;
 	public rtos: Map<string, string>;
@@ -48,12 +56,17 @@ function key2str(key: string | symbol): string {
 export class Configuration {
 	public path: CSPlusConf;
 	public device: Map<string, DeviceInfo>;
+	public micom: Map<string, MicomInfo>;
 
 	public defaultDeactive: Array<string>;
 
 	constructor() {
 		// 拡張機能Configuration取得
 		const conf = vscode.workspace.getConfiguration('cspBuilder');
+		// Device情報
+		this.device = new Map<string, DeviceInfo>();
+		// マイコン情報
+		this.micom = new Map<string,MicomInfo>();
 		///////////////////////////////
 		// マイコン情報
 		///////////////////////////////
@@ -89,8 +102,6 @@ export class Configuration {
 		for (const key of Reflect.ownKeys(confDevicefile)) {
 			this.path.cc.devicefile.set(key2str(key), confDevicefile[key]);
 		}
-		// Device情報
-		this.device = new Map<string, DeviceInfo>();
 		// Series-Device定義
 		// RL78
 		const confDeviceRL78 = conf.Micom.RL78;
@@ -139,6 +150,17 @@ export class Configuration {
 				device!.romAreaEnd = romAreaEnd;
 			}
 		}
+		// Blankエリア定義
+		const confBlank = conf.Micom.blank;
+		for (const key of Reflect.ownKeys(confBlank)) {
+			// blank値取得
+			const blank = parseInt(confBlank[key], 16);
+			// 正常に取得出来たら
+			if (!isNaN(blank)) {
+				const micom = this._getMicomInfo(key);
+				micom.blank = blank;
+			}
+		}
 		///////////////////////////////
 		// 拡張機能用設定
 		///////////////////////////////
@@ -146,14 +168,23 @@ export class Configuration {
 		this.defaultDeactive = this.commaSeqToArray(conf.BuildMode.DefaultDeactive);
 	}
 
-	public getDeviceInfo(device: string): DeviceInfo | undefined {
-		let result: DeviceInfo | undefined = undefined;
-		// deviceチェック
-		let deviceInfo = this.device.get(device);
-		if (deviceInfo) {
-			result = deviceInfo;
+	private _getMicomInfo(series: string | symbol): MicomInfo {
+		// 
+		let micom = this.micom.get(key2str(series));
+		if (micom === undefined) {
+			// device情報未作成なら作成する
+			this.micom.set(key2str(series), new MicomInfo());
+			micom = this.micom.get(key2str(series));
 		}
-		return result;
+		return micom!;
+	}
+
+	public getDeviceInfo(device: string): DeviceInfo | undefined {
+		return this.device.get(device);
+	}
+
+	public getMicomInfo(series: string): MicomInfo | undefined {
+		return this.micom.get(series);
 	}
 
 	private commaSeqToArray(org: string) {

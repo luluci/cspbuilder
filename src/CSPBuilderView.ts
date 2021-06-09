@@ -93,6 +93,9 @@ export class CSPBuilderPanel {
 					case 'onClickButtonCfgGen':
 						this._onClickButtonCfgGen(message.prjId, message.buildModeId);
 						break;
+					case 'onClickButtonTool':
+						this._onClickButtonTool(message.prjId, message.buildModeId);
+						break;
 					case 'onClickButtonRelease':
 						this._onClickButtonRelease();
 						break;
@@ -165,6 +168,10 @@ export class CSPBuilderPanel {
 			await this._cfgGen(prjId, buildModeId);
 			this._taskIsActive = false;
 		}
+	}
+
+	private async _onClickButtonTool(prjId: number, buildModeId: number) {
+		await this._tool(prjId, buildModeId);
 	}
 
 	private async _onClickButtonRelease() {
@@ -255,6 +262,23 @@ export class CSPBuilderPanel {
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("CFG gen task terminated: " + e);
+		} finally {
+			// nothing
+		}
+	}
+
+	private async _tool(prjId: number, buildModeId: number) {
+		this._outputChannel.show();
+		// BuildModeInfo取得
+		const prjInfo = this._wsInfo[0].projInfos[prjId];
+		// タスク実行
+		try {
+			//await prjInfo.calcChecksum(buildModeId, this._outputChannel);
+			this._updateHtmlBuildFinish(prjId, buildModeId);
+			//this._update();
+		} catch (e) {
+			// 異常時
+			this._outputChannel.appendLine("Tool task terminated: " + e);
 		} finally {
 			// nothing
 		}
@@ -721,6 +745,7 @@ export class CSPBuilderPanel {
 								<button type="button" class="build-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">Build</button>
 								<button type="button" class="rebuild-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">ReBuild</button>
 								${cfgButton}
+								<button type="button" class="tool-button" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}">Tool</button>
 							</div>
 						</div>
 						`;

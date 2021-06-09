@@ -95,6 +95,21 @@
 								"type": "string"
 							}
 						}
+					},
+					"cspBuilder.Micom.blank": {
+						"type": "object",
+						"default": {
+							"RL78": "FF",
+							"RX": "FF"
+						},
+						"properties": {
+							"RL78": {
+								"type": "string"
+							},
+							"RX": {
+								"type": "string"
+							}
+						}
 					}
 				}
 			}

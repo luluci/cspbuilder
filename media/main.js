@@ -63,6 +63,18 @@
 			});
 		});
 	});
+	document.querySelectorAll('.tool-button').forEach((elem) => {
+		elem.addEventListener('click', (e) => {
+			let elem = e.currentTarget;
+			let prjId = elem.dataset.prj_id;
+			let buildModeId = elem.dataset.buildmode_id;
+			vscode.postMessage({
+				command: 'onClickButtonTool',
+				prjId: prjId,
+				buildModeId: buildModeId
+			});
+		});
+	});
 	document.querySelectorAll('.release-button').forEach((elem) => {
 		elem.addEventListener('click', (e) => {
 			vscode.postMessage({
@@ -105,6 +117,8 @@
 		if (message.buildStatus === "Success") {
 			newElem.className = "BuildSuccess";
 			newElem.textContent = "Success";
+		} else if (message.buildStatus === "prebuild") {
+			newElem.textContent = "prebuild";
 		} else {
 			newElem.className = "BuildFailed";
 			newElem.textContent = "Failed";

@@ -4,7 +4,7 @@ import * as child_process from 'child_process';
 import * as xml2js from 'xml2js';
 import * as iconv from 'iconv-lite';
 
-import { DeviceInfo, config } from './config';
+import { DeviceInfo, MicomInfo, config } from './config';
 import { factoryHexTextFile } from './lib/hex-text-file/util';
 
 /**
@@ -25,6 +25,7 @@ export class MtpjInfo {
 	//public micomSeries: string;
 	public micomDevice: string;
 	public micomDeviceInfo?: DeviceInfo;
+	public micomInfo?: MicomInfo;
 
 	constructor(public id: number, public projFilePath: vscode.Uri) {
 		this.projFileName = posix.basename(projFilePath.path);
@@ -131,6 +132,15 @@ export class MtpjInfo {
 				default:
 					throw new Error(`unknown micom series "${this.micomDeviceInfo!.series}", not detect Configurator!`);
 			}
+		} else {
+			throw new Error("This Project is disabled!");
+		}
+	}
+
+	public async calcChecksum(buildModeId: number, outputChannel: vscode.OutputChannel) {
+		if (this.enable) {
+			const buildModeInfo = this.buildModeInfos[buildModeId];
+			this._calcChecksum(buildModeInfo, outputChannel);
 		} else {
 			throw new Error("This Project is disabled!");
 		}
@@ -361,6 +371,27 @@ export class MtpjInfo {
 		});
 	}
 
+	private async _calcChecksum(buildModeInfo: BuildModeInfo, outputChannel: vscode.OutputChannel): Promise<void> {
+		if (buildModeInfo.enableOutputFile && this.micomDeviceInfo && this.micomInfo) {
+			// hex/motからチェックサム計算
+			const text = await vscode.workspace.openTextDocument(buildModeInfo.hexFilePath!);
+			// 1行目を元にファイルフォーマットを判定
+			// 該当する解析クラスを作成する
+			const firstLine = text.lineAt(0).text;
+			const hexfile = factoryHexTextFile(firstLine);
+			// ファイル全体を読み込む
+			for (let lineNo = 0; lineNo < text.lineCount; lineNo++) {
+				hexfile.parse(text.lineAt(lineNo).text);
+			}
+			// チェックサム算出情報取得
+			const blank = this.micomInfo.blank;
+			const romAreaBegin = this.micomDeviceInfo.romAreaBegin;
+			const romAreaEnd = this.micomDeviceInfo.romAreaEnd;
+			// checksum算出
+			buildModeInfo.checksum = hexfile.checksum(blank, romAreaBegin, romAreaEnd);
+		}
+	}
+
 	private async _loadProjectFile() {
 		// mtpjをjson形式に変換
 		const xml = await vscode.workspace.openTextDocument(this.projFilePath);
@@ -376,7 +407,7 @@ export class MtpjInfo {
 		await this._outputFileCheck();
 		await this._loadMapFile();
 		// その他情報取得
-		//await this._calcChecksum();
+		//await this._calcChecksumAll();
 	}
 	private async _loadProjectFileFirst(json: any) {
 		// 情報取得
@@ -445,6 +476,11 @@ export class MtpjInfo {
 				if ("DeviceName" in instance) {
 					this.micomDevice = instance.DeviceName[0];
 					this.micomDeviceInfo = config.getDeviceInfo(this.micomDevice);
+					// マイコン情報への参照も同時に取得
+					if (this.micomDeviceInfo) {
+						const series = this.micomDeviceInfo.series;
+						this.micomInfo = config.getMicomInfo(series);
+					}
 				}
 				// HexOption
 				// "HexOptionOutputFolder-DefaultValue" が存在したら、HexOptionのinstanceと判断する
@@ -691,23 +727,6 @@ export class MtpjInfo {
 		}
 	}
 
-	private async _calcChecksum() {
-		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
-			const buildModeInfo = this.buildModeInfos[buildModeId];
-			if (buildModeInfo.enableOutputFile) {
-				// hex/motからチェックサム計算
-				const text = await vscode.workspace.openTextDocument(buildModeInfo.hexFilePath!);
-				//
-				const firstLine = text.lineAt(0).text;
-				const hexfile = factoryHexTextFile(firstLine);
-				//
-				for (let lineNo = 0; lineNo < text.lineCount; lineNo++) {
-					hexfile.parse(text.lineAt(lineNo).text);
-				}
-				let checksum = hexfile.checksum(0xFF, 0x0000, 0x7FFF);
-			}
-		}
-	}
 }
 
 class BuildModeInfo {
@@ -762,6 +781,8 @@ class BuildModeInfo {
 	public failedCount?: number;
 	public buildDate?: string;
 	public enableOutputFile: boolean;
+	// 生成物情報
+	public checksum: number;
 	// Buildログ解析正規表現
 	static reBuildMsgRamDataSection = /RAMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
 	static reBuildMsgRomDataSection = /ROMDATA SECTION:\s+([0-9a-fA-F]+)\s+Byte/;
@@ -781,6 +802,8 @@ class BuildModeInfo {
 		this.hexFileName = "";
 		this.mapFileName = "";
 		this.enableOutputFile = false;
+		//
+		this.checksum = 0;
 		// デフォルトパス設定
 		this.buildModeDirPath = vscode.Uri.parse(posix.join(projDirPath.path, buildMode));
 		//

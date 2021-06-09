@@ -140,7 +140,7 @@ export class MtpjInfo {
 	public async calcChecksum(buildModeId: number, outputChannel: vscode.OutputChannel) {
 		if (this.enable) {
 			const buildModeInfo = this.buildModeInfos[buildModeId];
-			this._calcChecksum(buildModeInfo, outputChannel);
+			await this._calcChecksum(buildModeInfo, outputChannel);
 		} else {
 			throw new Error("This Project is disabled!");
 		}

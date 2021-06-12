@@ -82,6 +82,13 @@
 			});
 		});
 	});
+	document.querySelectorAll('.release-nobuild-button').forEach((elem) => {
+		elem.addEventListener('click', (e) => {
+			vscode.postMessage({
+				command: 'onClickButtonReleaseNoBuild'
+			});
+		});
+	});
 	document.querySelectorAll('.data-input-common').forEach((elem) => {
 		elem.addEventListener('input', (e) => {
 			const elem = e.currentTarget;
@@ -99,14 +106,17 @@
 	window.addEventListener('message', event => {
 		const message = event.data; // The json data that the extension sent
 		switch (message.command) {
-			case 'BuildFinish':
-				buildFinish(message);
+			case 'BuildStatus':
+				updateBuildStatus(message);
+				break;
+			case 'QuickView':
+				updateQuickView(message);
 				break;
 		}
 	});
 
 
-	function buildFinish(message) {
+	function updateBuildStatus(message) {
 		// ID
 		const id = `${message.projectId}_${message.buildModeId}`;
 		// BuildStatus
@@ -148,6 +158,28 @@
 		const warningCountId = `BuildStatus_WarningCount_${id}`;
 		const warningCount = document.getElementById(warningCountId);
 		warningCount.textContent = `${message.warningCount}`;
+	}
+
+	function updateQuickView(message) {
+		// ID
+		const id = `${message.projectId}_${message.buildModeId}`;
+		// OutputDir
+		let outputDir = _getString(message.outputDir);
+		_updateTextContent(`output-dir_${id}`, outputDir);
+		// OutputFile
+		let outputFile = _getString(message.outputFile);
+		_updateTextContent(`output-file_${id}`, outputFile);
+	}
+
+	function _getString(text) {
+		if (text === undefined) {
+			text = "";
+		}
+		return text;
+	}
+
+	function _updateTextContent(id, text) {
+		document.getElementById(id).textContent = text;
 	}
 
 	/*

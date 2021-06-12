@@ -186,6 +186,12 @@ div.tooltop_container div.title {
 }
 div.tooltop_container div.tool {
 	width: 300px;
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+div.tooltop_container div.tool button {
+	margin: 0 5px;
 }
 
 

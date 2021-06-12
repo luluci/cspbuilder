@@ -26,6 +26,21 @@
 						"default": "DefaultBuild",
 						"description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
 					},
+					"cspBuilder.BuildMode.ReleaseName": {
+						"type": "object",
+						"default": {
+							"DefaultBuild": "",
+							"ReleaseBuild": "release"
+						},
+						"properties": {
+							"DefaultBuild": {
+								"type": "string"
+							},
+							"ReleaseBuild": {
+								"type": "string"
+							}
+						}
+					},
 					"cspBuilder.path.CC.CSPlus": {
 						"type": "string",
 						"default": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\CubeSuite+.exe",

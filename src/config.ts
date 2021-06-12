@@ -59,6 +59,7 @@ export class Configuration {
 	public micom: Map<string, MicomInfo>;
 
 	public defaultDeactive: Array<string>;
+	public releaseName: Map<string, string>;
 
 	constructor() {
 		// 拡張機能Configuration取得
@@ -166,6 +167,14 @@ export class Configuration {
 		///////////////////////////////
 		// DefaultDeactive設定
 		this.defaultDeactive = this.commaSeqToArray(conf.BuildMode.DefaultDeactive);
+		// Release時設定名称
+		this.releaseName = new Map < string, string >();
+		const releaseName = conf.BuildMode.ReleaseName;
+		for (const key of Reflect.ownKeys(releaseName)) {
+			// ReleaseName値取得
+			const name = releaseName[key];
+			this.releaseName.set(key2str(key), name);
+		}
 	}
 
 	private _getMicomInfo(series: string | symbol): MicomInfo {

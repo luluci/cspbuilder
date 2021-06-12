@@ -26,6 +26,7 @@ export class MtpjInfo {
 	public micomDevice: string;
 	public micomDeviceInfo?: DeviceInfo;
 	public micomInfo?: MicomInfo;
+	// Release情報
 
 	constructor(public id: number, public projFilePath: vscode.Uri) {
 		this.projFileName = posix.basename(projFilePath.path);
@@ -43,6 +44,8 @@ export class MtpjInfo {
 		//
 		//this.micomSeries = "";
 		this.micomDevice = "";
+		// Release情報
+
 	}
 
 	public async analyze(outputChannel: vscode.OutputChannel) {
@@ -52,27 +55,37 @@ export class MtpjInfo {
 	}
 
 	/**
-	 * リリース用情報を設定する
+	 * リリース用情報初期化
 	 * @param releaseDir 
 	 * @param releaseTag 
 	 */
-	public async setReleaseInfo(releaseDirName: string, releaseTag: string) {
+	public initReleaseInfo(releaseDirName: string, releaseTag: string) {
+		// 初期化時に固定となる情報を設定する
 		// ビルドモード毎に設定
 		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
 			const buildMode = this.buildModeInfos[buildModeId];
 			// release先パス作成
 			const baseDir = this.projDirPath.path;
 			const releaseDir = posix.join(baseDir, releaseDirName);
-			const releaseTagDir = posix.join(releaseDir, releaseTag);
+			buildMode.releaseDirName = releaseDirName;
+			buildMode.releaseDirPathStr = releaseDir;
 			buildMode.releaseDirPath = vscode.Uri.parse(releaseDir);
 			buildMode.releaseDirPathDisp = `/${releaseDirName}`;
+		}
+		// 拡張機能上で動的に変更できる情報を設定する
+		this.setReleaseInfo(releaseTag);
+	}
+
+	public setReleaseInfo(releaseTag: string) {
+		// ビルドモード毎に設定
+		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+			const buildMode = this.buildModeInfos[buildModeId];
+
+			const releaseTagDir = posix.join(buildMode.releaseDirPathStr, releaseTag);
 			buildMode.releaseTagDirPath = vscode.Uri.parse(releaseTagDir);
-			buildMode.releaseTagDirPathDisp = `/${releaseDirName}/${releaseTag}`;
+			buildMode.releaseTagDirPathDisp = `/${buildMode.releaseDirName}/${releaseTag}`;
 			// 
-			const buildModeName = buildMode.buildMode;
-			const hexExt = posix.extname(buildMode.hexFileName);
-			const hexName = posix.basename(buildMode.hexFileName, hexExt);
-			buildMode.releaseHexFileName = `${hexName}_${buildModeName}_${releaseTag}${hexExt}`;
+			buildMode.releaseHexFileName = `${buildMode.releaseName}_${releaseTag}${buildMode.hexFileExt}`;
 			buildMode.releaseHexFilePath = vscode.Uri.parse(posix.join(releaseTagDir, buildMode.releaseHexFileName));
 		}
 	}
@@ -496,8 +509,12 @@ export class MtpjInfo {
 						key = `HexOptionOutputFileName-${buildModeId}`;
 						if (key in instance) {
 							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
-							buildModeInfo.hexFileName = outputFile;
+							buildModeInfo.hexFilePathStr = outputFile;
 							buildModeInfo.hexFilePath = this._makeFilePath(buildModeInfo.hexOutputDir!.path, outputFile);
+							const hexExt = posix.extname(buildModeInfo.hexFilePathStr);
+							const hexName = posix.basename(buildModeInfo.hexFilePathStr, hexExt);
+							buildModeInfo.hexFileExt = hexExt;
+							buildModeInfo.hexFileName = hexName;
 						}
 					}
 				}
@@ -513,7 +530,7 @@ export class MtpjInfo {
 						key = `LinkOptionConvertFileName-${buildModeId}`;
 						if (key in instance) {
 							const outputFile = this._getProperty(instance[key][0], buildModeInfo);
-							buildModeInfo.hexFileName = outputFile;
+							buildModeInfo.hexFilePathStr = outputFile;
 							buildModeInfo.hexFilePath = this._makeFilePath(buildModeInfo.hexOutputDir!.path, outputFile);
 						}
 					}
@@ -738,7 +755,11 @@ class BuildModeInfo {
 	public buildTgt: boolean;
 	// デフォルトパス設定
 	public buildModeDirPath: vscode.Uri;		// デフォルトアウトプットパス：projDir/%BuildMode% 
+	// Release情報
+	public releaseName: string;					// 
 	// RELEASEアウトプットパス
+	public releaseDirName: string;				//
+	public releaseDirPathStr: string;			// 
 	public releaseDirPath?: vscode.Uri;			// release共通ディレクトリパス: projDir/release
 	public releaseTagDirPath?: vscode.Uri;		// Tag付けディレクトリパス: <releaseDirPath>/<ReleaseTag>
 	public releaseHexFilePath?: vscode.Uri;		// hex
@@ -747,8 +768,10 @@ class BuildModeInfo {
 	public releaseTagDirPathDisp?: string;
 	public releaseHexFileName?: string;
 	// Hex
-	public hexOutputDir?: vscode.Uri;
+	public hexFileExt: string;
 	public hexFileName: string;
+	public hexOutputDir?: vscode.Uri;
+	public hexFilePathStr: string;
 	public hexFilePath?: vscode.Uri;
 	// Link
 	public linkOutputDir?: vscode.Uri;
@@ -799,7 +822,9 @@ class BuildModeInfo {
 		this.projectName = "";
 		this.absFile = "";
 		this.hexFile = "";
+		this.hexFileExt = "";
 		this.hexFileName = "";
+		this.hexFilePathStr = "";
 		this.mapFileName = "";
 		this.enableOutputFile = false;
 		//
@@ -816,6 +841,14 @@ class BuildModeInfo {
 		this.sihaFileName = "";
 		this.cfgUOption = false;
 		this.cfgVOption = false;
+		// Release情報
+		let releaseName = config.releaseName.get(buildMode);
+		if (releaseName === undefined) {
+			releaseName = "";
+		}
+		this.releaseName = releaseName;
+		this.releaseDirName = "";
+		this.releaseDirPathStr = "";
 	}
 
 	public initBuildInfo() {

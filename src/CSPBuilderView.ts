@@ -99,6 +99,9 @@ export class CSPBuilderPanel {
 					case 'onClickButtonRelease':
 						this._onClickButtonRelease();
 						break;
+					case 'onClickButtonReleaseNoBuild':
+						//this._onClickButtonReleaseNoBuild();
+						break;
 					case 'onInputCommon':
 						this._onInputCommon(message.type, message.value);
 						break;
@@ -209,7 +212,12 @@ export class CSPBuilderPanel {
 		//
 		switch (type) {
 			case 'release_tag':
-				wsInfo.releaseTag = value;
+				wsInfo.update(value);
+				for (let prjId = 0; prjId < wsInfo.projInfos.length; prjId++) {
+					for (let buildModeId = 0; buildModeId < wsInfo.projInfos[prjId].buildModeInfos.length; buildModeId++) {
+						this._updateHtmlQuickView(prjId, buildModeId);
+					}
+				}
 				break;
 		}
 	}
@@ -223,7 +231,7 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.build(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._updateHtmlBuildStatus(prjId, buildModeId);
 			//this._update();
 		} catch (e) {
 			// 異常時
@@ -240,7 +248,7 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._updateHtmlBuildStatus(prjId, buildModeId);
 			//this._update();
 		} catch (e) {
 			// 異常時
@@ -257,7 +265,7 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.cfgGen(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._updateHtmlBuildStatus(prjId, buildModeId);
 			//this._update();
 		} catch (e) {
 			// 異常時
@@ -274,7 +282,7 @@ export class CSPBuilderPanel {
 		// タスク実行
 		try {
 			//await prjInfo.calcChecksum(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._updateHtmlBuildStatus(prjId, buildModeId);
 			//this._update();
 		} catch (e) {
 			// 異常時
@@ -291,7 +299,7 @@ export class CSPBuilderPanel {
 		// ビルドタスク実行
 		try {
 			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			this._updateHtmlBuildFinish(prjId, buildModeId);
+			this._updateHtmlBuildStatus(prjId, buildModeId);
 			//this._update();
 		} catch (e) {
 			// 異常時
@@ -408,6 +416,7 @@ export class CSPBuilderPanel {
 					CS+ Builder
 				</div>
 				<div class="tool">
+					<button type="button" class="release-nobuild-button">RELEASE(no build)</button>
 					<button type="button" class="release-button">RELEASE</button>
 				</div>
 			</div>
@@ -526,8 +535,8 @@ export class CSPBuilderPanel {
 								${prjFile}
 							</td>
 							<td class="build-mode"><a href="#BuildMode_${buildModeId}">${buildMode.buildMode}</a></td>
-							<td class="output-dir">${buildMode.releaseTagDirPathDisp}</td>
-							<td class="output-file">${buildMode.releaseHexFileName}</td>
+							<td class="output-dir"  id="output-dir_${buildId}">${buildMode.releaseTagDirPathDisp}</td>
+							<td class="output-file" id="output-file_${buildId}">${buildMode.releaseHexFileName}</td>
 						</tr>
 					`;
 				}
@@ -761,10 +770,10 @@ export class CSPBuilderPanel {
 		return this._webViewHtmlProjFileInfo;
 	}
 
-	private _updateHtmlBuildFinish(prjId: number, buildModeId: number) {
+	private _updateHtmlBuildStatus(prjId: number, buildModeId: number) {
 		const buildInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
 		this._postMsgForWebView({
-			command: "BuildFinish",
+			command: "BuildStatus",
 			projectId: prjId,
 			buildModeId: buildModeId,
 			buildStatus: buildInfo.buildStatus,
@@ -774,6 +783,17 @@ export class CSPBuilderPanel {
 			errorCount: buildInfo.errorCount,
 			warningCount: buildInfo.warningCount,
 			buildDate: buildInfo.buildDate
+		});
+	}
+
+	private _updateHtmlQuickView(prjId: number, buildModeId: number) {
+		const buildInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
+		this._postMsgForWebView({
+			command: "QuickView",
+			projectId: prjId,
+			buildModeId: buildModeId,
+			outputDir: buildInfo.releaseTagDirPathDisp,
+			outputFile: buildInfo.releaseHexFileName
 		});
 	}
 
@@ -809,10 +829,18 @@ class CSPWorkspaceInfo {
 					const fileUri = vscode.Uri.parse(posix.join(this.rootPath.path, name));
 					const inf = new MtpjInfo(projId, fileUri);
 					await inf.analyze(outputChannel);
-					await inf.setReleaseInfo(this.releaseDirName, this.releaseTag);
+					inf.initReleaseInfo(this.releaseDirName, this.releaseTag);
 					this.projInfos.push(inf);
 				}
 			}
+		}
+	}
+
+	public update(releaseTag: string) {
+		this.releaseTag = releaseTag;
+
+		for (const inf of this.projInfos) {
+			inf.setReleaseInfo(releaseTag);
 		}
 	}
 }

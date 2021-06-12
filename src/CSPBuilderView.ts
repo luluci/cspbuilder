@@ -1,4 +1,5 @@
 import { posix } from 'path';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { DeviceInfo, config } from './config';
 import { MtpjInfo } from './CSPProjectInfo';
@@ -97,10 +98,10 @@ export class CSPBuilderPanel {
 						this._onClickButtonTool(message.prjId, message.buildModeId);
 						break;
 					case 'onClickButtonRelease':
-						this._onClickButtonRelease();
+						this._onClickButtonRelease(true);
 						break;
 					case 'onClickButtonReleaseNoBuild':
-						//this._onClickButtonReleaseNoBuild();
+						this._onClickButtonRelease(false);
 						break;
 					case 'onInputCommon':
 						this._onInputCommon(message.type, message.value);
@@ -177,7 +178,7 @@ export class CSPBuilderPanel {
 		await this._tool(prjId, buildModeId);
 	}
 
-	private async _onClickButtonRelease() {
+	private async _onClickButtonRelease(enableRebuild: boolean) {
 		// ビルドタスクは1つだけ許可する
 		if (this._taskIsActive) {
 			//vscode.window.setStatusBarMessage('Now Building!', 5000);
@@ -192,8 +193,23 @@ export class CSPBuilderPanel {
 				for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
 					const buildModeInfo = prjInfo.buildModeInfos[buildModeId];
 					if (buildModeInfo.buildTgt) {
-						// 有効であればビルド実行
-						await this._release(prjId, buildModeId);
+						// ターゲット設定されているビルドモードに対して実行
+						if (enableRebuild) {
+							// リビルドが必要であれば実行
+							await this._rebuild(prjId, buildModeId);
+						} else {
+							// リビルド不要のとき
+							// ビルドファイルが無いときはビルドをかける
+							if (!buildModeInfo.enableOutputFile) {
+								await prjInfo.build(buildModeId, this._outputChannel);
+								this._updateHtmlBuildStatus(prjId, buildModeId);
+								//this._update();
+							}
+						}
+						if (buildModeInfo.isReleasable()) {
+							// ビルド出力ファイルが存在していたら処理実施
+							await this._release(prjId, buildModeId);
+						}
 					}
 				}
 			}
@@ -296,14 +312,19 @@ export class CSPBuilderPanel {
 		this._outputChannel.show();
 		// BuildModeInfo取得
 		const prjInfo = this._wsInfo[0].projInfos[prjId];
-		// ビルドタスク実行
+		const buildMode = prjInfo.buildModeInfos[buildModeId];
 		try {
-			await prjInfo.rebuild(buildModeId, this._outputChannel);
-			this._updateHtmlBuildStatus(prjId, buildModeId);
-			//this._update();
+			// リリース処理を実施
+			// 出力フォルダ作成
+			await vscode.workspace.fs.createDirectory(buildMode.releaseTagDirPath!);
+			// hexファイルをリリースフォルダにコピー
+			await vscode.workspace.fs.copy(buildMode.hexFilePath!, buildMode.releaseHexFilePath!, {overwrite:true});
+			// リリースノート作成
+			const text = "test\r\ntest";
+			fs.writeFileSync(buildMode.releaseNotePath!.fsPath, text);
 		} catch (e) {
 			// 異常時
-			this._outputChannel.appendLine("Build task terminated: " + e);
+			this._outputChannel.appendLine("Release task terminated: " + e);
 		} finally {
 			// nothing
 		}

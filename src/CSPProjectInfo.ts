@@ -80,13 +80,18 @@ export class MtpjInfo {
 		// ビルドモード毎に設定
 		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
 			const buildMode = this.buildModeInfos[buildModeId];
-
+			// リリースフォルダパス作成
 			const releaseTagDir = posix.join(buildMode.releaseDirPathStr, releaseTag);
 			buildMode.releaseTagDirPath = vscode.Uri.parse(releaseTagDir);
 			buildMode.releaseTagDirPathDisp = `/${buildMode.releaseDirName}/${releaseTag}`;
-			// 
+			// リリースhexファイルパス作成
 			buildMode.releaseHexFileName = `${buildMode.releaseName}_${releaseTag}${buildMode.hexFileExt}`;
 			buildMode.releaseHexFilePath = vscode.Uri.parse(posix.join(releaseTagDir, buildMode.releaseHexFileName));
+			// リリースノートパス作成
+			buildMode.releaseNotePathStr = `${buildMode.releaseName}_${releaseTag}.txt`;
+			buildMode.releaseNotePath = vscode.Uri.parse(posix.join(releaseTagDir, buildMode.releaseNotePathStr));
+			// リリース情報有効
+			buildMode.enableRelease = true;
 		}
 	}
 
@@ -757,6 +762,7 @@ class BuildModeInfo {
 	public buildModeDirPath: vscode.Uri;		// デフォルトアウトプットパス：projDir/%BuildMode% 
 	// Release情報
 	public releaseName: string;					// 
+	public enableRelease: boolean;
 	// RELEASEアウトプットパス
 	public releaseDirName: string;				//
 	public releaseDirPathStr: string;			// 
@@ -767,6 +773,9 @@ class BuildModeInfo {
 	public releaseDirPathDisp?: string;
 	public releaseTagDirPathDisp?: string;
 	public releaseHexFileName?: string;
+	// ReleaseNoteパス
+	public releaseNotePathStr: string;
+	public releaseNotePath?: vscode.Uri;
 	// Hex
 	public hexFileExt: string;
 	public hexFileName: string;
@@ -842,6 +851,7 @@ class BuildModeInfo {
 		this.cfgUOption = false;
 		this.cfgVOption = false;
 		// Release情報
+		this.enableRelease = false;
 		let releaseName = config.releaseName.get(buildMode);
 		if (releaseName === undefined) {
 			releaseName = "";
@@ -849,6 +859,7 @@ class BuildModeInfo {
 		this.releaseName = releaseName;
 		this.releaseDirName = "";
 		this.releaseDirPathStr = "";
+		this.releaseNotePathStr = "";
 	}
 
 	public initBuildInfo() {
@@ -936,5 +947,18 @@ class BuildModeInfo {
 			// ファイルが見つからなかったらパス無効
 			this.enableOutputFile = false;
 		}
+	}
+
+	/**
+	 * release処理に必要な情報がそろっているかチェック
+	 */
+	public isReleasable(): boolean {
+		if (!this.enableOutputFile) {
+			return false;
+		}
+		if (!this.enableRelease) {
+			return false;
+		}
+		return true;
 	}
 }

@@ -320,7 +320,7 @@ export class CSPBuilderPanel {
 			// hexファイルをリリースフォルダにコピー
 			await vscode.workspace.fs.copy(buildMode.hexFilePath!, buildMode.releaseHexFilePath!, {overwrite:true});
 			// リリースノート作成
-			const text = "test\r\ntest";
+			const text = buildMode.getReleaseNote();
 			fs.writeFileSync(buildMode.releaseNotePath!.fsPath, text);
 		} catch (e) {
 			// 異常時

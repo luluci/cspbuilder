@@ -961,4 +961,22 @@ class BuildModeInfo {
 		}
 		return true;
 	}
+
+	public getReleaseNote(): string {
+
+		// ReleaseNote作成
+		let text = `# ReleaseNote
+
+## FileName
+${this.releaseHexFileName}
+
+## Version
+
+
+`;
+
+		// 文字列fix
+		text = text.replace(/\n/g, "\r\n");
+		return text;
+	}
 }

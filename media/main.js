@@ -141,23 +141,23 @@
 		// RAM size
 		const ramSizeId = `BuildStatus_RamSize_${id}`;
 		const ramSize = document.getElementById(ramSizeId);
-		ramSize.textContent = `${message.ramSize} bytes`;
+		ramSize.textContent = message.ramSize;
 		// RAM size
 		const romSizeId = `BuildStatus_RomSize_${id}`;
 		const romSize = document.getElementById(romSizeId);
-		romSize.textContent = `${message.romSize} bytes`;
+		romSize.textContent = message.romSize;
 		// RAM size
 		const programSizeId = `BuildStatus_ProgramSize_${id}`;
 		const programSize = document.getElementById(programSizeId);
-		programSize.textContent = `${message.programSize} bytes`;
+		programSize.textContent = message.programSize;
 		// ErrorCount
 		const errorCountId = `BuildStatus_ErrorCount_${id}`;
 		const errorCount = document.getElementById(errorCountId);
-		errorCount.textContent = `${message.errorCount}`;
+		errorCount.textContent = message.errorCount;
 		// WarningCount
 		const warningCountId = `BuildStatus_WarningCount_${id}`;
 		const warningCount = document.getElementById(warningCountId);
-		warningCount.textContent = `${message.warningCount}`;
+		warningCount.textContent = message.warningCount;
 	}
 
 	function updateQuickView(message) {

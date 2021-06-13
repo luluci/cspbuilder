@@ -614,56 +614,18 @@ export class CSPBuilderPanel {
 						} else {
 							buildStatus = '<span>未ビルド</span>';
 						}
-						let buildDate: string;
-						if (buildMode.buildDate !== undefined) {
-							buildDate = `${buildMode.buildDate}`;
-						} else {
-							buildDate = `-`;
-						}
-						let ramSize: string;
-						if (buildMode.ramSize !== undefined) {
-							ramSize = `${buildMode.ramSize} bytes`;
-						} else {
-							ramSize = `-`;
-						}
-						let romSize: string;
-						if (buildMode.romSize !== undefined) {
-							romSize = `${buildMode.romSize} bytes`;
-						} else {
-							romSize = `-`;
-						}
-						let programSize: string;
-						if (buildMode.programSize !== undefined) {
-							programSize = `${buildMode.programSize} bytes`;
-						} else {
-							programSize = `-`;
-						}
-						let errorCount: string;
-						if (buildMode.errorCount !== undefined) {
-							errorCount = `${buildMode.errorCount}`;
-						} else {
-							errorCount = `-`;
-						}
-						let warningCount: string;
-						if (buildMode.warningCount !== undefined) {
-							warningCount = `${buildMode.warningCount}`;
-						} else {
-							warningCount = `-`;
-						}
+						let buildDate = this._getDispTextStringData(buildMode.buildDate);
+						let ramSize = this._getDispTextByteData(buildMode.ramSize);
+						let romSize = this._getDispTextByteData(buildMode.romSize);
+						let programSize = this._getDispTextByteData(buildMode.programSize);
+						let errorCount = this._getDispTextCountData(buildMode.errorCount);
+						let warningCount = this._getDispTextCountData(buildMode.warningCount);
 						// Build Property
 						let hexFile: string;
 						let mapFile: string;
 						if (buildMode.enableOutputFile) {
-							if (buildMode.hexFilePath !== undefined) {
-								hexFile = buildMode.hexFilePath.fsPath;
-							} else {
-								hexFile = `-`;
-							}
-							if (buildMode.mapFilePath !== undefined) {
-								mapFile = buildMode.mapFilePath.fsPath;
-							} else {
-								mapFile = `-`;
-							}
+							hexFile = this._getDispTextVscodeUriData(buildMode.hexFilePath);
+							mapFile = this._getDispTextVscodeUriData(buildMode.mapFilePath);
 						} else {
 							hexFile = `-`;
 							mapFile = `-`;
@@ -791,6 +753,46 @@ export class CSPBuilderPanel {
 		return this._webViewHtmlProjFileInfo;
 	}
 
+	private _getDispTextStringData(data: string | undefined): string {
+		let text: string;
+		if (data === undefined) {
+			text = "-";
+		} else {
+			text = data;
+		}
+		return text;
+	}
+
+	private _getDispTextCountData(data: number | undefined): string {
+		let text: string;
+		if (data === undefined) {
+			text = "-";
+		} else {
+			text = `${data}`;
+		}
+		return text;
+	}
+
+	private _getDispTextByteData(data: number | undefined): string {
+		let text: string;
+		if (data === undefined) {
+			text = "-";
+		} else {
+			text = `${data} bytes`;
+		}
+		return text;
+	}
+
+	private _getDispTextVscodeUriData(data: vscode.Uri | undefined): string {
+		let text: string;
+		if (data === undefined) {
+			text = "-";
+		} else {
+			text = `${data.fsPath}`;
+		}
+		return text;
+	}
+
 	private _updateHtmlBuildStatus(prjId: number, buildModeId: number) {
 		const buildInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
 		this._postMsgForWebView({
@@ -798,11 +800,11 @@ export class CSPBuilderPanel {
 			projectId: prjId,
 			buildModeId: buildModeId,
 			buildStatus: buildInfo.buildStatus,
-			ramSize: buildInfo.ramSize,
-			romSize: buildInfo.romSize,
-			programSize: buildInfo.programSize,
-			errorCount: buildInfo.errorCount,
-			warningCount: buildInfo.warningCount,
+			ramSize: this._getDispTextByteData(buildInfo.ramSize),
+			romSize: this._getDispTextByteData(buildInfo.romSize),
+			programSize: this._getDispTextByteData(buildInfo.programSize),
+			errorCount: this._getDispTextCountData(buildInfo.errorCount),
+			warningCount: this._getDispTextCountData(buildInfo.warningCount),
 			buildDate: buildInfo.buildDate
 		});
 	}

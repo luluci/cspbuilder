@@ -183,38 +183,43 @@ export class CSPBuilderPanel {
 		if (this._taskIsActive) {
 			//vscode.window.setStatusBarMessage('Now Building!', 5000);
 			vscode.window.showInformationMessage('Now Building!');
-		} else {
-			this._taskIsActive = true;
-			// プロジェクトファイルを全部チェック
-			const prjInfos = this._wsInfo[0].projInfos;
-			for (let prjId = 0; prjId < prjInfos.length; prjId++) {
-				const prjInfo = prjInfos[prjId];
-				// BuildModeを全部チェック
-				for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
-					const buildModeInfo = prjInfo.buildModeInfos[buildModeId];
-					if (buildModeInfo.buildTgt) {
-						// ターゲット設定されているビルドモードに対して実行
-						if (enableRebuild) {
-							// リビルドが必要であれば実行
-							await this._rebuild(prjId, buildModeId);
-						} else {
-							// リビルド不要のとき
-							// ビルドファイルが無いときはビルドをかける
-							if (!buildModeInfo.enableOutputFile) {
-								await prjInfo.build(buildModeId, this._outputChannel);
-								this._updateHtmlBuildStatus(prjId, buildModeId);
-								//this._update();
-							}
-						}
-						if (buildModeInfo.isReleasable()) {
-							// ビルド出力ファイルが存在していたら処理実施
-							await this._release(prjId, buildModeId);
+			return;
+		}
+		// 
+		const wsInfo = this._wsInfo[0];
+		if (!wsInfo.enableRelease) {
+			vscode.window.showInformationMessage('Release Setting failed!');
+			return;
+		}
+		// 処理実行
+		this._taskIsActive = true;
+		// プロジェクトファイルを全部チェック
+		const prjInfos = wsInfo.projInfos;
+		for (let prjId = 0; prjId < prjInfos.length; prjId++) {
+			const prjInfo = prjInfos[prjId];
+			// BuildModeを全部チェック
+			for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
+				const buildModeInfo = prjInfo.buildModeInfos[buildModeId];
+				if (buildModeInfo.buildTgt) {
+					// ターゲット設定されているビルドモードに対して実行
+					if (enableRebuild) {
+						// リビルドが必要であれば実行
+						await this._rebuild(prjId, buildModeId);
+					} else {
+						// リビルド不要のとき
+						// ビルドファイルが無いときはビルドをかける
+						if (!buildModeInfo.enableOutputFile) {
+							await prjInfo.build(buildModeId, this._outputChannel);
+							this._updateHtmlBuildStatus(prjId, buildModeId);
+							//this._update();
 						}
 					}
 				}
 			}
-			this._taskIsActive = false;
 		}
+		// リリース処理実施
+		await this._release();
+		this._taskIsActive = false;
 	}
 
 	/** プロジェクト共通情報inputハンドラ
@@ -309,20 +314,33 @@ export class CSPBuilderPanel {
 		}
 	}
 
-	private async _release(prjId: number, buildModeId: number) {
+	private async _release() {
 		this._outputChannel.show();
 		// BuildModeInfo取得
 		const wsInfo = this._wsInfo[0];
-		const prjInfo = this._wsInfo[0].projInfos[prjId];
-		const buildMode = prjInfo.buildModeInfos[buildModeId];
+		// リリース処理を実施
 		try {
-			// リリース処理を実施
 			// 出力フォルダ作成
 			await vscode.workspace.fs.createDirectory(wsInfo.releaseTagDirPath!);
-			// hexファイルをリリースフォルダにコピー
-			await vscode.workspace.fs.copy(buildMode.hexFilePath!, buildMode.releaseHexFilePath!, {overwrite:true});
+			// BuildMode毎出力ファイルをコピー
+			// プロジェクトファイルを全部チェック
+			for (let prjId = 0; prjId < wsInfo.projInfos.length; prjId++) {
+				const prjInfo = wsInfo.projInfos[prjId];
+				// BuildModeを全部チェック
+				for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
+					const buildMode = prjInfo.buildModeInfos[buildModeId];
+					// ターゲット設定されているビルドモードに対して実行
+					if (buildMode.buildTgt) {
+						// Release可能な状態のとき
+						if (buildMode.isReleasable()) {
+							// hexファイルをリリースフォルダにコピー
+							await vscode.workspace.fs.copy(buildMode.hexFilePath!, buildMode.releaseHexFilePath!, { overwrite: true });
+						}
+					}
+				}
+			}
 			// リリースノート作成
-			const text = buildMode.getReleaseNote();
+			const text = wsInfo.getReleaseNote();
 			fs.writeFileSync(wsInfo.releaseNotePath!.fsPath, text);
 		} catch (e) {
 			// 異常時
@@ -951,6 +969,46 @@ class CSPWorkspaceInfo {
 		for (const inf of this.projInfos) {
 			inf.setReleaseInfo(this.releaseTagDirPathStr, releaseTag);
 		}
+	}
+
+	public getReleaseNote(): string {
+		let releaseFiles = "";
+
+		// プロジェクトファイルを全部チェック
+		for (let prjId = 0; prjId < this.projInfos.length; prjId++) {
+			const prjInfo = this.projInfos[prjId];
+			// BuildModeを全部チェック
+			for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
+				const buildMode = prjInfo.buildModeInfos[buildModeId];
+				// ターゲット設定されているビルドモードに対して実行
+				if (buildMode.buildTgt) {
+					// Release可能な状態のとき
+					if (buildMode.isReleasable()) {
+						// hexファイルをリリースフォルダにコピー
+						if (releaseFiles === "") {
+							releaseFiles = buildMode.releaseHexFileName;
+						} else {
+							releaseFiles = `${releaseFiles}\r\n${buildMode.releaseHexFileName}`;
+						}
+					}
+				}
+			}
+		}
+	
+		// ReleaseNote作成
+		let text = `# ReleaseNote
+
+## FileName
+${releaseFiles}
+
+## Version
+
+
+`;
+
+		// 文字列fix
+		text = text.replace(/\n/g, "\r\n");
+		return text;
 	}
 }
 

@@ -749,7 +749,7 @@ class BuildModeInfo {
 	// RELEASEアウトプットパス
 	public releaseHexFilePath?: vscode.Uri;		// hex
 	// RELEASEアウトプットパス(表示用相対パス文字列)
-	public releaseHexFileName?: string;
+	public releaseHexFileName: string;
 	// Hex
 	public hexFileExt: string;
 	public hexFileName: string;
@@ -831,6 +831,7 @@ class BuildModeInfo {
 			releaseName = "";
 		}
 		this.releaseName = releaseName;
+		this.releaseHexFileName = "";
 	}
 
 	public initBuildInfo() {
@@ -933,21 +934,4 @@ class BuildModeInfo {
 		return true;
 	}
 
-	public getReleaseNote(): string {
-
-		// ReleaseNote作成
-		let text = `# ReleaseNote
-
-## FileName
-${this.releaseHexFileName}
-
-## Version
-
-
-`;
-
-		// 文字列fix
-		text = text.replace(/\n/g, "\r\n");
-		return text;
-	}
 }

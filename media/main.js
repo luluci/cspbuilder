@@ -106,11 +106,14 @@
 	window.addEventListener('message', event => {
 		const message = event.data; // The json data that the extension sent
 		switch (message.command) {
-			case 'BuildStatus':
-				updateBuildStatus(message);
+			case 'CommonInfo':
+				updateCommonInfo(message);
 				break;
 			case 'QuickView':
 				updateQuickView(message);
+				break;
+			case 'BuildStatus':
+				updateBuildStatus(message);
 				break;
 		}
 	});
@@ -160,18 +163,23 @@
 		warningCount.textContent = message.warningCount;
 	}
 
+	function updateCommonInfo(message) {
+		// OutputDir
+		const outputDir = _getString(message.outputDir);
+		_updateTextContent(`output-dir`, outputDir);
+		// Output ReleaseNote File
+		const outputReleaseNoteFile = _getString(message.outputReleaseNoteFile);
+		const outputReleaseNoteTitle = _getString(message.outputReleaseNoteTitle);
+		_updateTextContent(`output-release-note-file`, outputReleaseNoteFile, outputReleaseNoteTitle);
+	}
+
 	function updateQuickView(message) {
 		// ID
 		const id = `${message.projectId}_${message.buildModeId}`;
-		// OutputDir
-		let outputDir = _getString(message.outputDir);
-		_updateTextContent(`output-dir_${id}`, outputDir);
 		// Output Hex File
-		let outputHexFile = _getString(message.outputHexFile);
-		_updateTextContent(`output-hex-file_${id}`, outputHexFile);
-		// Output ReleaseNote File
-		let outputReleaseNoteFile = _getString(message.outputReleaseNoteFile);
-		_updateTextContent(`output-release-note-file_${id}`, outputReleaseNoteFile);
+		const outputHexFile = _getString(message.outputHexFile);
+		const outputHexTitle = _getString(message.outputHexTitle);
+		_updateTextContent(`output-hex-file_${id}`, outputHexFile, outputHexTitle);
 	}
 
 	function _getString(text) {
@@ -181,8 +189,12 @@
 		return text;
 	}
 
-	function _updateTextContent(id, text) {
-		document.getElementById(id).textContent = text;
+	function _updateTextContent(id, text, title = undefined) {
+		const elem = document.getElementById(id);
+		elem.textContent = text;
+		if (title) {
+			elem.title = title;
+		}
 	}
 
 	/*

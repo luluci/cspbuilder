@@ -229,6 +229,7 @@ export class CSPBuilderPanel {
 		switch (type) {
 			case 'release_tag':
 				wsInfo.update(value);
+				this._updateHtmlCommonInfo();
 				for (let prjId = 0; prjId < wsInfo.projInfos.length; prjId++) {
 					for (let buildModeId = 0; buildModeId < wsInfo.projInfos[prjId].buildModeInfos.length; buildModeId++) {
 						this._updateHtmlQuickView(prjId, buildModeId);
@@ -480,6 +481,11 @@ export class CSPBuilderPanel {
 			// 先頭要素のみ使用する
 			const wsInfo = wsList[0];
 			//
+			const prjDir = this._getDispTextVscodeUriData(wsInfo.rootPath);
+			// Outputパス情報
+			const outputDir = this._getDispTextVscodeUriData(wsInfo.releaseTagDirPath);
+			const outputReleaseNoteTitle = this._getDispTextVscodeUriData(wsInfo.releaseNotePath);
+			//
 			this._webViewHtmlCommonInfo = `
 			<h2>Project Common Info</h2>
 			<table>
@@ -492,12 +498,24 @@ export class CSPBuilderPanel {
 				<tbody>
 					<tr>
 						<td class="property">Project Dir</td>
-						<td class="data">${wsInfo.rootPath.path}</td>
+						<td class="data">${prjDir}</td>
 					</tr>
 					<tr>
 						<td class="property">Release Tag</td>
 						<td class="data">
 							<input type="text" class="data-input-common" data-type="release_tag" value="${wsInfo.releaseTag}" />
+						</td>
+					</tr>
+					<tr>
+						<td class="property">Release Output Dir</td>
+						<td class="data">
+							<span class="output-dir" id="output-dir">${outputDir}</span>
+						</td>
+					</tr>
+					<tr>
+						<td class="property">ReleaseNote File</td>
+						<td class="data">
+							<span class="output-release-note-file" id="output-release-note-file" title="${outputReleaseNoteTitle}">${wsInfo.releaseNoteFileName}</span>
 						</td>
 					</tr>
 				</tbody>
@@ -526,9 +544,7 @@ export class CSPBuilderPanel {
 						<th class="checkbox">Tgt</th>
 						<th class="proj-file">ProjFile</th>
 						<th class="build-mode">BuildMode</th>
-						<th class="output-dir">OutputDir</th>
-						<th class="output-hex-file">OutputFiles</th>
-						<th class="output-hex-file"></th>
+						<th class="output-hex-file">Release Files</th>
 					</tr>
 				</thead>`;
 			this._webViewHtmlProjQuickView += `<tbody>`;
@@ -548,8 +564,8 @@ export class CSPBuilderPanel {
 					if (buildModeId === 0) {
 						prjFile = prjFileName;
 					}
-					// OutputDir
-					const outputDirTitle = this._getDispTextVscodeUriData(wsInfo.releaseTagDirPath);
+					// Outputパス情報
+					const outputHexTitle = this._getDispTextVscodeUriData(buildMode.releaseHexFilePath);
 					// html
 					this._webViewHtmlProjQuickView += `
 						<tr>
@@ -560,9 +576,7 @@ export class CSPBuilderPanel {
 								${prjFile}
 							</td>
 							<td class="build-mode"><a href="#BuildMode_${buildModeId}">${buildMode.buildMode}</a></td>
-							<td class="output-dir" id="output-dir_${buildId}" title="${outputDirTitle}">${wsInfo.releaseTagDirPathDisp}</td>
-							<td class="output-hex-file" id="output-hex-file_${buildId}">${buildMode.releaseHexFileName}</td>
-							<td class="output-release-note-file" id="output-release-note-file_${buildId}">${wsInfo.releaseNoteFileName}</td>
+							<td class="output-hex-file" id="output-hex-file_${buildId}" title="${outputHexTitle}">${buildMode.releaseHexFileName}</td>
 						</tr>
 					`;
 				}
@@ -813,6 +827,16 @@ export class CSPBuilderPanel {
 			buildDate: buildInfo.buildDate
 		});
 	}
+	
+	private _updateHtmlCommonInfo() {
+		const wsInfo = this._wsInfo[0];
+		this._postMsgForWebView({
+			command: "CommonInfo",
+			outputDir: this._getDispTextVscodeUriData(wsInfo.releaseTagDirPath),
+			outputReleaseNoteFile: wsInfo.releaseNoteFileName,
+			outputReleaseNoteTitle: this._getDispTextVscodeUriData(wsInfo.releaseNotePath)
+		});
+	}
 
 	private _updateHtmlQuickView(prjId: number, buildModeId: number) {
 		const wsInfo = this._wsInfo[0];
@@ -821,9 +845,8 @@ export class CSPBuilderPanel {
 			command: "QuickView",
 			projectId: prjId,
 			buildModeId: buildModeId,
-			outputDir: wsInfo.releaseTagDirPathDisp,
 			outputHexFile: buildInfo.releaseHexFileName,
-			outputReleaseNoteFile: wsInfo.releaseNoteFileName
+			outputHexTitle: this._getDispTextVscodeUriData(buildInfo.releaseHexFilePath)
 		});
 	}
 

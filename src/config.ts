@@ -59,6 +59,7 @@ export class Configuration {
 	public micom: Map<string, MicomInfo>;
 
 	public defaultDeactive: Array<string>;
+	public releaseNoteName: string;
 	public releaseName: Map<string, string>;
 
 	constructor() {
@@ -167,9 +168,14 @@ export class Configuration {
 		///////////////////////////////
 		// DefaultDeactive設定
 		this.defaultDeactive = this.commaSeqToArray(conf.BuildMode.DefaultDeactive);
-		// Release時設定名称
+		///////////////////////////////
+		// リリース用設定
+		///////////////////////////////
+		// リリースノートファイル名を指定
+		this.releaseNoteName = conf.Release.ReleaseNoteFileName;
+		// ビルドモード毎のリリース時ファイル名を指定
 		this.releaseName = new Map < string, string >();
-		const releaseName = conf.BuildMode.ReleaseName;
+		const releaseName = conf.Release.BuildModeReleaseName;
 		for (const key of Reflect.ownKeys(releaseName)) {
 			// ReleaseName値取得
 			const name = releaseName[key];

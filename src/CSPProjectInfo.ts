@@ -26,7 +26,6 @@ export class MtpjInfo {
 	public micomDevice: string;
 	public micomDeviceInfo?: DeviceInfo;
 	public micomInfo?: MicomInfo;
-	// Release情報
 
 	constructor(public id: number, public projFilePath: vscode.Uri) {
 		this.projFileName = posix.basename(projFilePath.path);
@@ -44,8 +43,6 @@ export class MtpjInfo {
 		//
 		//this.micomSeries = "";
 		this.micomDevice = "";
-		// Release情報
-
 	}
 
 	public async analyze(outputChannel: vscode.OutputChannel) {
@@ -59,37 +56,23 @@ export class MtpjInfo {
 	 * @param releaseDir 
 	 * @param releaseTag 
 	 */
-	public initReleaseInfo(releaseDirName: string, releaseTag: string) {
+	public initReleaseInfo(releaseTagDir: string, releaseTag: string) {
 		// 初期化時に固定となる情報を設定する
 		// ビルドモード毎に設定
-		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
-			const buildMode = this.buildModeInfos[buildModeId];
-			// release先パス作成
-			const baseDir = this.projDirPath.path;
-			const releaseDir = posix.join(baseDir, releaseDirName);
-			buildMode.releaseDirName = releaseDirName;
-			buildMode.releaseDirPathStr = releaseDir;
-			buildMode.releaseDirPath = vscode.Uri.parse(releaseDir);
-			buildMode.releaseDirPathDisp = `/${releaseDirName}`;
-		}
+		//for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
+		//	const buildMode = this.buildModeInfos[buildModeId];
+		//}
 		// 拡張機能上で動的に変更できる情報を設定する
-		this.setReleaseInfo(releaseTag);
+		this.setReleaseInfo(releaseTagDir, releaseTag);
 	}
 
-	public setReleaseInfo(releaseTag: string) {
+	public setReleaseInfo(releaseTagDir: string, releaseTag: string) {
 		// ビルドモード毎に設定
 		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
 			const buildMode = this.buildModeInfos[buildModeId];
-			// リリースフォルダパス作成
-			const releaseTagDir = posix.join(buildMode.releaseDirPathStr, releaseTag);
-			buildMode.releaseTagDirPath = vscode.Uri.parse(releaseTagDir);
-			buildMode.releaseTagDirPathDisp = `/${buildMode.releaseDirName}/${releaseTag}`;
 			// リリースhexファイルパス作成
 			buildMode.releaseHexFileName = `${buildMode.releaseName}_${releaseTag}${buildMode.hexFileExt}`;
 			buildMode.releaseHexFilePath = vscode.Uri.parse(posix.join(releaseTagDir, buildMode.releaseHexFileName));
-			// リリースノートパス作成
-			buildMode.releaseNotePathStr = `${buildMode.releaseName}_${releaseTag}.txt`;
-			buildMode.releaseNotePath = vscode.Uri.parse(posix.join(releaseTagDir, buildMode.releaseNotePathStr));
 			// リリース情報有効
 			buildMode.enableRelease = true;
 		}
@@ -764,18 +747,9 @@ class BuildModeInfo {
 	public releaseName: string;					// 
 	public enableRelease: boolean;
 	// RELEASEアウトプットパス
-	public releaseDirName: string;				//
-	public releaseDirPathStr: string;			// 
-	public releaseDirPath?: vscode.Uri;			// release共通ディレクトリパス: projDir/release
-	public releaseTagDirPath?: vscode.Uri;		// Tag付けディレクトリパス: <releaseDirPath>/<ReleaseTag>
 	public releaseHexFilePath?: vscode.Uri;		// hex
 	// RELEASEアウトプットパス(表示用相対パス文字列)
-	public releaseDirPathDisp?: string;
-	public releaseTagDirPathDisp?: string;
 	public releaseHexFileName?: string;
-	// ReleaseNoteパス
-	public releaseNotePathStr: string;
-	public releaseNotePath?: vscode.Uri;
 	// Hex
 	public hexFileExt: string;
 	public hexFileName: string;
@@ -857,9 +831,6 @@ class BuildModeInfo {
 			releaseName = "";
 		}
 		this.releaseName = releaseName;
-		this.releaseDirName = "";
-		this.releaseDirPathStr = "";
-		this.releaseNotePathStr = "";
 	}
 
 	public initBuildInfo() {

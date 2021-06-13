@@ -166,9 +166,12 @@
 		// OutputDir
 		let outputDir = _getString(message.outputDir);
 		_updateTextContent(`output-dir_${id}`, outputDir);
-		// OutputFile
-		let outputFile = _getString(message.outputFile);
-		_updateTextContent(`output-file_${id}`, outputFile);
+		// Output Hex File
+		let outputHexFile = _getString(message.outputHexFile);
+		_updateTextContent(`output-hex-file_${id}`, outputHexFile);
+		// Output ReleaseNote File
+		let outputReleaseNoteFile = _getString(message.outputReleaseNoteFile);
+		_updateTextContent(`output-release-note-file_${id}`, outputReleaseNoteFile);
 	}
 
 	function _getString(text) {

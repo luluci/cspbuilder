@@ -311,17 +311,18 @@ export class CSPBuilderPanel {
 	private async _release(prjId: number, buildModeId: number) {
 		this._outputChannel.show();
 		// BuildModeInfo取得
+		const wsInfo = this._wsInfo[0];
 		const prjInfo = this._wsInfo[0].projInfos[prjId];
 		const buildMode = prjInfo.buildModeInfos[buildModeId];
 		try {
 			// リリース処理を実施
 			// 出力フォルダ作成
-			await vscode.workspace.fs.createDirectory(buildMode.releaseTagDirPath!);
+			await vscode.workspace.fs.createDirectory(wsInfo.releaseTagDirPath!);
 			// hexファイルをリリースフォルダにコピー
 			await vscode.workspace.fs.copy(buildMode.hexFilePath!, buildMode.releaseHexFilePath!, {overwrite:true});
 			// リリースノート作成
 			const text = buildMode.getReleaseNote();
-			fs.writeFileSync(buildMode.releaseNotePath!.fsPath, text);
+			fs.writeFileSync(wsInfo.releaseNotePath!.fsPath, text);
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Release task terminated: " + e);
@@ -526,7 +527,8 @@ export class CSPBuilderPanel {
 						<th class="proj-file">ProjFile</th>
 						<th class="build-mode">BuildMode</th>
 						<th class="output-dir">OutputDir</th>
-						<th class="output-file">OutputFile</th>
+						<th class="output-hex-file">OutputFiles</th>
+						<th class="output-hex-file"></th>
 					</tr>
 				</thead>`;
 			this._webViewHtmlProjQuickView += `<tbody>`;
@@ -546,6 +548,8 @@ export class CSPBuilderPanel {
 					if (buildModeId === 0) {
 						prjFile = prjFileName;
 					}
+					// OutputDir
+					const outputDirTitle = this._getDispTextVscodeUriData(wsInfo.releaseTagDirPath);
 					// html
 					this._webViewHtmlProjQuickView += `
 						<tr>
@@ -556,8 +560,9 @@ export class CSPBuilderPanel {
 								${prjFile}
 							</td>
 							<td class="build-mode"><a href="#BuildMode_${buildModeId}">${buildMode.buildMode}</a></td>
-							<td class="output-dir"  id="output-dir_${buildId}">${buildMode.releaseTagDirPathDisp}</td>
-							<td class="output-file" id="output-file_${buildId}">${buildMode.releaseHexFileName}</td>
+							<td class="output-dir" id="output-dir_${buildId}" title="${outputDirTitle}">${wsInfo.releaseTagDirPathDisp}</td>
+							<td class="output-hex-file" id="output-hex-file_${buildId}">${buildMode.releaseHexFileName}</td>
+							<td class="output-release-note-file" id="output-release-note-file_${buildId}">${wsInfo.releaseNoteFileName}</td>
 						</tr>
 					`;
 				}
@@ -810,13 +815,15 @@ export class CSPBuilderPanel {
 	}
 
 	private _updateHtmlQuickView(prjId: number, buildModeId: number) {
-		const buildInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
+		const wsInfo = this._wsInfo[0];
+		const buildInfo = wsInfo.projInfos[prjId].buildModeInfos[buildModeId];
 		this._postMsgForWebView({
 			command: "QuickView",
 			projectId: prjId,
 			buildModeId: buildModeId,
-			outputDir: buildInfo.releaseTagDirPathDisp,
-			outputFile: buildInfo.releaseHexFileName
+			outputDir: wsInfo.releaseTagDirPathDisp,
+			outputHexFile: buildInfo.releaseHexFileName,
+			outputReleaseNoteFile: wsInfo.releaseNoteFileName
 		});
 	}
 
@@ -829,14 +836,36 @@ export class CSPBuilderPanel {
 class CSPWorkspaceInfo {
 	// プロジェクトファイル情報リスト(複数ファイルを想定)
 	public projInfos: Array<MtpjInfo>;
+	public projDirPath?: vscode.Uri;
 	// プロジェクト共通情報
 	public releaseDirName: string;
 	public releaseTag: string;
+	public releaseNoteName: string;
+	// RELEASEアウトプットパス
+	public releaseDirPathStr: string;			// 
+	public releaseDirPath?: vscode.Uri;			// release共通ディレクトリパス: projDir/release
+	public releaseTagDirPathStr: string;		//
+	public releaseTagDirPath?: vscode.Uri;		// Tag付けディレクトリパス: <releaseDirPath>/<ReleaseTag>
+	// RELEASEアウトプットパス(表示用相対パス文字列)
+	public releaseDirPathDisp?: string;
+	public releaseTagDirPathDisp?: string;
+	// ReleaseNoteパス
+	public releaseNoteFileName: string;
+	public releaseNotePathStr: string;
+	public releaseNotePath?: vscode.Uri;
+	// RELEASE初期化済みフラグ
+	public enableRelease: boolean;
 
 	constructor(public rootPath: vscode.Uri) {
 		this.projInfos = [];
 		this.releaseDirName = "release";
 		this.releaseTag = "vXXXX";
+		this.releaseNoteName = config.releaseNoteName;
+		this.releaseNoteFileName = `${this.releaseNoteName}_${this.releaseTag}.txt`;
+		this.releaseDirPathStr = "";
+		this.releaseTagDirPathStr = "";
+		this.releaseNotePathStr = "";
+		this.enableRelease = false;
 	}
 
 	public async analyze(outputChannel: vscode.OutputChannel) {
@@ -857,13 +886,47 @@ class CSPWorkspaceInfo {
 				}
 			}
 		}
+		// Release情報初期化
+		this.initReleaseInfo();
+	}
+
+	public initReleaseInfo() {
+		// Workspace共通情報を設定
+		// Releaseファイル収集先フォルダ
+		const baseDir = this.rootPath.path;
+		const releaseDir = posix.join(baseDir, this.releaseDirName);
+		this.releaseDirPathStr = releaseDir;
+		this.releaseDirPath = vscode.Uri.parse(releaseDir);
+		this.releaseDirPathDisp = `/${this.releaseDirName}`;
+		// 
+		this.setReleaseInfo();
+		//
+		for (const wsinfo of this.projInfos) {
+			wsinfo.initReleaseInfo(this.releaseTagDirPathStr, this.releaseTag);
+		}
+		//
+		this.enableRelease = true;
+	}
+
+	public setReleaseInfo() {
+		// リリースフォルダパス作成
+		const releaseTagDir = posix.join(this.releaseDirPathStr, this.releaseTag);
+		this.releaseTagDirPathStr = releaseTagDir;
+		this.releaseTagDirPath = vscode.Uri.parse(releaseTagDir);
+		this.releaseTagDirPathDisp = `/${this.releaseDirName}/${this.releaseTag}`;
+		// リリースノートパス作成
+		this.releaseNoteFileName = `${this.releaseNoteName}_${this.releaseTag}.txt`;
+		this.releaseNotePathStr = posix.join(releaseTagDir, this.releaseNoteFileName);
+		this.releaseNotePath = vscode.Uri.parse(this.releaseNotePathStr);
 	}
 
 	public update(releaseTag: string) {
 		this.releaseTag = releaseTag;
-
+		// プロジェクト共通情報更新
+		this.setReleaseInfo();
+		// プロジェクトファイル情報更新
 		for (const inf of this.projInfos) {
-			inf.setReleaseInfo(releaseTag);
+			inf.setReleaseInfo(this.releaseTagDirPathStr, releaseTag);
 		}
 	}
 }

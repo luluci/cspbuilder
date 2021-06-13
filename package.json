@@ -26,10 +26,16 @@
 						"default": "DefaultBuild",
 						"description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
 					},
-					"cspBuilder.BuildMode.ReleaseName": {
+					"cspBuilder.Release.ReleaseNoteFileName": {
+						"type": "string",
+						"default": "ReleaseNote",
+						"description": "リリースノートファイル名を指定"
+					},
+					"cspBuilder.Release.BuildModeReleaseName": {
 						"type": "object",
+						"description": "ビルドモード毎のリリース時ファイル名を指定",
 						"default": {
-							"DefaultBuild": "",
+							"DefaultBuild": "default",
 							"ReleaseBuild": "release"
 						},
 						"properties": {

@@ -196,6 +196,30 @@ div.tooltop_container div.tool button {
 
 
 
+div.project_common_info_container {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	margin: 10px 10px 20px 20px;
+}
+div.project_common_info_container div.project-property {
+	width: auto;
+}
+div.project_common_info_container div.release-settings {
+	width: auto;
+}
+table.release-settings tr th.checkbox,
+table.release-settings tr td.checkbox  {
+	width: auto;
+}
+table.release-settings tr th.property,
+table.release-settings tr td.property  {
+	min-width: 200px;
+	width: auto;
+}
+
+
+
 div.build_mode_container {
 	display: flex;
 	flex-direction: row;

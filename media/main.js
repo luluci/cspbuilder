@@ -18,11 +18,28 @@
 			sameIdElem.checked = state;
 			sameIdElem = document.getElementById(`build-tgt-checkbox_quickview_${prjId}_${buildModeId}`);
 			sameIdElem.checked = state;
-			//
+			// 拡張機能に通知
 			vscode.postMessage({
 				command: 'onClickCheckBuidModeTgt',
 				prjId: prjId,
 				buildModeId: buildModeId,
+				state: state
+			});
+		});
+	});
+	document.querySelectorAll('.release-tgt-checkbox').forEach((elem) => {
+		elem.addEventListener('click', (e) => {
+			let id = "";
+			let state = false;
+			let elem = e.currentTarget;
+			if (elem) {
+				id = elem.id;
+				state = elem.checked;
+			}
+			// 拡張機能に通知
+			vscode.postMessage({
+				command: 'onClickCheckReleaseTgt',
+				id: id,
 				state: state
 			});
 		});

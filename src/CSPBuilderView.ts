@@ -18,6 +18,9 @@ export class CSPBuilderPanel {
 	private _wsInfo: Array<CSPWorkspaceInfo>;
 	private _nonce: string;
 	private _taskIsActive: boolean;
+	// Release Settings
+	private _releaseHex: boolean;
+	private _releaseReleaseNote: boolean;
 	// 
 	private _webViewHtmlHeader?: string;
 	private _webViewHtmlCommonInfo?: string;
@@ -62,6 +65,8 @@ export class CSPBuilderPanel {
 		this._extensionUri = extensionUri;
 		this._wsInfo = [];
 		this._taskIsActive = false;
+		this._releaseHex = true;
+		this._releaseReleaseNote = true;
 		this._outputChannel = vscode.window.createOutputChannel("CS+Builder");
 		this._outputChannel.show();
 		// WebView Init
@@ -84,6 +89,9 @@ export class CSPBuilderPanel {
 				switch (message.command) {
 					case 'onClickCheckBuidModeTgt':
 						this._onClickCheckBuidModeTgt(message.prjId, message.buildModeId, message.state);
+						break;
+					case 'onClickCheckReleaseTgt':
+						this._onClickCheckReleaseTgt(message.prjId, message.id, message.state);
 						break;
 					case 'onClickButtonBuild':
 						this._onClickButtonBuild(message.prjId, message.buildModeId);
@@ -139,6 +147,18 @@ export class CSPBuilderPanel {
 		const buildModeInfo = this._wsInfo[0].projInfos[prjId].buildModeInfos[buildModeId];
 		// 有効無効切り替え
 		buildModeInfo.buildTgt = state;
+	}
+
+	private _onClickCheckReleaseTgt(prjId: number, id: string, state: boolean) {
+		// Release生成物対象設定
+		switch (id) {
+			case 'release-tgt-checkbox-hex':
+				this._releaseHex = state;
+				break;
+			case 'release-tgt-checkbox-releasenote':
+				this._releaseReleaseNote = state;
+				break;
+		}
 	}
 
 	private async _onClickButtonBuild(prjId: number, buildModeId: number) {
@@ -322,26 +342,30 @@ export class CSPBuilderPanel {
 		try {
 			// 出力フォルダ作成
 			await vscode.workspace.fs.createDirectory(wsInfo.releaseTagDirPath!);
-			// BuildMode毎出力ファイルをコピー
-			// プロジェクトファイルを全部チェック
-			for (let prjId = 0; prjId < wsInfo.projInfos.length; prjId++) {
-				const prjInfo = wsInfo.projInfos[prjId];
-				// BuildModeを全部チェック
-				for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
-					const buildMode = prjInfo.buildModeInfos[buildModeId];
-					// ターゲット設定されているビルドモードに対して実行
-					if (buildMode.buildTgt) {
-						// Release可能な状態のとき
-						if (buildMode.isReleasable()) {
-							// hexファイルをリリースフォルダにコピー
-							await vscode.workspace.fs.copy(buildMode.hexFilePath!, buildMode.releaseHexFilePath!, { overwrite: true });
+			if (this._releaseHex) {
+				// BuildMode毎出力ファイルをコピー
+				// プロジェクトファイルを全部チェック
+				for (let prjId = 0; prjId < wsInfo.projInfos.length; prjId++) {
+					const prjInfo = wsInfo.projInfos[prjId];
+					// BuildModeを全部チェック
+					for (let buildModeId = 0; buildModeId < prjInfo.buildModeInfos.length; buildModeId++) {
+						const buildMode = prjInfo.buildModeInfos[buildModeId];
+						// ターゲット設定されているビルドモードに対して実行
+						if (buildMode.buildTgt) {
+							// Release可能な状態のとき
+							if (buildMode.isReleasable()) {
+								// hexファイルをリリースフォルダにコピー
+								await vscode.workspace.fs.copy(buildMode.hexFilePath!, buildMode.releaseHexFilePath!, { overwrite: true });
+							}
 						}
 					}
 				}
 			}
-			// リリースノート作成
-			const text = wsInfo.getReleaseNote();
-			fs.writeFileSync(wsInfo.releaseNotePath!.fsPath, text);
+			if (this._releaseReleaseNote) {
+				// リリースノート作成
+				const text = wsInfo.getReleaseNote();
+				fs.writeFileSync(wsInfo.releaseNotePath!.fsPath, text);
+			}
 		} catch (e) {
 			// 異常時
 			this._outputChannel.appendLine("Release task terminated: " + e);
@@ -506,38 +530,66 @@ export class CSPBuilderPanel {
 			//
 			this._webViewHtmlCommonInfo = `
 			<h2>Project Common Info</h2>
-			<table>
-				<thead>
-					<tr>
-						<th class="property">Property</th>
-						<th class="data">Data</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr>
-						<td class="property">Project Dir</td>
-						<td class="data">${prjDir}</td>
-					</tr>
-					<tr>
-						<td class="property">Release Tag</td>
-						<td class="data">
-							<input type="text" class="data-input-common" data-type="release_tag" value="${wsInfo.releaseTag}" />
-						</td>
-					</tr>
-					<tr>
-						<td class="property">Release Output Dir</td>
-						<td class="data">
-							<span class="output-dir" id="output-dir">${outputDir}</span>
-						</td>
-					</tr>
-					<tr>
-						<td class="property">ReleaseNote File</td>
-						<td class="data">
-							<span class="output-release-note-file" id="output-release-note-file" title="${outputReleaseNoteTitle}">${wsInfo.releaseNoteFileName}</span>
-						</td>
-					</tr>
-				</tbody>
-			</table>
+			<div class="project_common_info_container">
+				<div class="project-property">
+					<table>
+						<thead>
+							<tr>
+								<th class="property">Property</th>
+								<th class="data">Data</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td class="property">Project Dir</td>
+								<td class="data">${prjDir}</td>
+							</tr>
+							<tr>
+								<td class="property">Release Tag</td>
+								<td class="data">
+									<input type="text" class="data-input-common" data-type="release_tag" value="${wsInfo.releaseTag}" />
+								</td>
+							</tr>
+							<tr>
+								<td class="property">Release Output Dir</td>
+								<td class="data">
+									<span class="output-dir" id="output-dir">${outputDir}</span>
+								</td>
+							</tr>
+							<tr>
+								<td class="property">ReleaseNote File</td>
+								<td class="data">
+									<span class="output-release-note-file" id="output-release-note-file" title="${outputReleaseNoteTitle}">${wsInfo.releaseNoteFileName}</span>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<div class="release-settings">
+					<table class="release-settings">
+						<thead>
+							<tr>
+								<th class="checkbox">Tgt</th>
+								<th class="property">Release Item</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td class="checkbox">
+									<input type="checkbox" class="release-tgt-checkbox" id="release-tgt-checkbox-hex" checked="checked">
+								</td>
+								<td class="property">HEX/MOT file</td>
+							</tr>
+							<tr>
+								<td class="checkbox">
+									<input type="checkbox" class="release-tgt-checkbox" id="release-tgt-checkbox-releasenote" checked="checked">
+								</td>
+								<td class="property">Release Note</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
 			`;
 		}
 		return this._webViewHtmlCommonInfo;

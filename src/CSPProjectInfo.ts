@@ -48,7 +48,7 @@ export class MtpjInfo {
 	public async analyze(outputChannel: vscode.OutputChannel) {
 		//await this._checkRcpeFile(outputChannel);
 		//await this._loadRcpeFile();
-		await this._loadProjectFile();
+		await this._loadProjectFile(outputChannel);
 	}
 
 	/**
@@ -393,7 +393,7 @@ export class MtpjInfo {
 		}
 	}
 
-	private async _loadProjectFile() {
+	private async _loadProjectFile(outputChannel: vscode.OutputChannel) {
 		// mtpjをjson形式に変換
 		const xml = await vscode.workspace.openTextDocument(this.projFilePath);
 		const json = await xml2js.parseStringPromise(xml.getText());
@@ -406,9 +406,7 @@ export class MtpjInfo {
 		await this._loadProjectFileSecond(json);
 		// 各種ファイルの存在チェック
 		await this._outputFileCheck();
-		await this._loadMapFile();
-		// その他情報取得
-		//await this._calcChecksumAll();
+		await this._loadMapFile(outputChannel);
 	}
 	private async _loadProjectFileFirst(json: any) {
 		// 情報取得
@@ -705,7 +703,7 @@ export class MtpjInfo {
 		}
 	}
 
-	private async _loadMapFile() {
+	private async _loadMapFile(outputChannel: vscode.OutputChannel) {
 		for (let buildModeId = 0; buildModeId < this.buildModeCount; buildModeId++) {
 			const buildModeInfo = this.buildModeInfos[buildModeId];
 			if (buildModeInfo.enableOutputFile) {
@@ -716,6 +714,7 @@ export class MtpjInfo {
 				}
 				//
 				buildModeInfo.buildStatus = "prebuild";
+				//await this._calcChecksum(buildModeInfo, outputChannel);
 			}
 		}
 	}

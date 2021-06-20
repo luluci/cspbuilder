@@ -32,6 +32,10 @@ export class HexTextFile {
 		return this._format;
 	}
 
+	public checkFormat(line: string): boolean {
+		return false;
+	}
+
 	public checksum(blank: number, start: number, end: number): number {
 		let idx = Math.floor(start / 16);
 		let pos = start % 16;

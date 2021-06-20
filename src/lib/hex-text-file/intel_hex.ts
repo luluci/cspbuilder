@@ -36,7 +36,7 @@ export class IntelHex extends HexTextFile {
 	public parse(line: string): boolean {
 
 		// フォーマットチェック
-		if (!this._checkStartMark(line)) {
+		if (!this.checkFormat(line)) {
 			return false;
 		}
 		try {
@@ -58,7 +58,7 @@ export class IntelHex extends HexTextFile {
 		return true;
 	}
 
-	private _checkStartMark(line: string): boolean {
+	public checkFormat(line: string): boolean {
 		const startMark = line.charAt(0);
 		if (startMark !== ':') {
 			return false;
@@ -168,7 +168,7 @@ export class IntelHex extends HexTextFile {
 	public static validation(line: string): boolean {
 		const obj = new IntelHex();
 		// フォーマットチェック
-		if (!obj._checkStartMark(line)) {
+		if (!obj.checkFormat(line)) {
 			return false;
 		}
 

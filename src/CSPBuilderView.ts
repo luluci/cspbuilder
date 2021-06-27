@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { DeviceInfo, config } from './config';
 import { MtpjInfo } from './CSPProjectInfo';
-import { Release } from './release';
+import { OutputExcel } from './release';
 
 export class CSPBuilderPanel {
 	// View ID
@@ -368,9 +368,9 @@ export class CSPBuilderPanel {
 				fs.writeFileSync(wsInfo.releaseNotePath!.fsPath, text);
 			}
 			{
-				const release = new Release(this._outputChannel);
+				const release = new OutputExcel(this._outputChannel);
 				const releaseFilePath = vscode.Uri.parse(posix.join(wsInfo.releaseTagDirPathStr, 'test.xlsx'));
-				release.release(releaseFilePath.fsPath);
+				release.run(releaseFilePath.fsPath);
 			}
 		} catch (e) {
 			// 異常時

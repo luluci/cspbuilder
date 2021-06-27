@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import * as xlsx from 'xlsx';
 
-export class Release {
+export class OutputExcel {
 
 	constructor(private _outputChannel: vscode.OutputChannel) {
 		
 	}
 
-	public release(outputPath: string) {
+	public run(outputPath: string) {
 		this._outputExcel(outputPath);
 	}
 

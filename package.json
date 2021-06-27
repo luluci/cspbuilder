@@ -60,8 +60,12 @@
 							"RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4"
 						},
 						"properties": {
-							"RL78": { "type": "string" },
-							"RX": { "type": "string" }
+							"RL78": {
+								"type": "string"
+							},
+							"RX": {
+								"type": "string"
+							}
 						}
 					},
 					"cspBuilder.path.CC.RTOS.Configurator": {
@@ -72,8 +76,12 @@
 							"RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4\\bin600\\cfg600.exe"
 						},
 						"properties": {
-							"RL78": { "type": "string" },
-							"RX": { "type": "string" }
+							"RL78": {
+								"type": "string"
+							},
+							"RX": {
+								"type": "string"
+							}
 						}
 					},
 					"cspBuilder.path.CC.Devicefile": {
@@ -94,7 +102,9 @@
 							"R5F101SL": "1"
 						},
 						"properties": {
-							"R5F101SL": { "type": "string" }
+							"R5F101SL": {
+								"type": "string"
+							}
 						}
 					},
 					"cspBuilder.Micom.RX": {
@@ -103,7 +113,9 @@
 							"R5F572TFAxFP": "1"
 						},
 						"properties": {
-							"R5F572TFAxFP": { "type": "string" }
+							"R5F572TFAxFP": {
+								"type": "string"
+							}
 						}
 					},
 					"cspBuilder.Micom.ROMArea": {
@@ -173,6 +185,7 @@
 		"webpack-cli": "^4.4.0"
 	},
 	"dependencies": {
+		"xlsx": "^0.17.0",
 		"xml2js": "^0.4.23"
 	}
 }

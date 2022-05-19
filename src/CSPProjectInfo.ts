@@ -452,6 +452,8 @@ export class MtpjInfo {
 	private async _loadProjectFileSecond(json: any) {
 		// 情報取得
 		const classInfos = json.CubeSuiteProject.Class;
+		// DeviceManagerのGuid
+		let deviceGuid = "";
 		for (let i = 0; i < classInfos.length; i++) {
 			const instances = classInfos[i].Instance;
 			for (let instanceId = 0; instanceId < instances.length; instanceId++) {
@@ -471,15 +473,10 @@ export class MtpjInfo {
 						}
 					}
 				}
-				// Device情報
-				if ("DeviceName" in instance) {
-					this.micomDevice = instance.DeviceName[0];
-					this.micomDeviceInfo = config.getDeviceInfo(this.micomDevice);
-					// マイコン情報への参照も同時に取得
-					if (this.micomDeviceInfo) {
-						const series = this.micomDeviceInfo.series;
-						this.micomInfo = config.getMicomInfo(series);
-					}
+				// DeviceManagerGuid取得
+				// ここで指定されたClassにプロジェクトで選択しているDeviceが格納されてるはず
+				if ("DeviceManager" in instance) {
+					deviceGuid = instance.DeviceManager[0];
 				}
 				// HexOption
 				// "HexOptionOutputFolder-DefaultValue" が存在したら、HexOptionのinstanceと判断する
@@ -555,6 +552,7 @@ export class MtpjInfo {
 										case '-list':
 											const outputFile = this._getProperty(opt[1], buildModeInfo);
 											buildModeInfo.mapFilePath = this._makeProjRelPath(outputFile);
+											break;
 									}
 								}
 							}
@@ -654,6 +652,27 @@ export class MtpjInfo {
 							buildModeInfo.cfgVOption = true;
 						} else {
 							buildModeInfo.cfgVOption = false;
+						}
+					}
+				}
+			}
+		}
+		// 特定のClassタグを取得するために2回目の探索を回す
+		for (let i = 0; i < classInfos.length; i++) {
+			if (classInfos[i].$.Guid === deviceGuid) {
+				// DeviceManager Class
+				const instances = classInfos[i].Instance;
+				for (let instanceId = 0; instanceId < instances.length; instanceId++) {
+					const instance = instances[instanceId];
+
+					// Device情報
+					if ("DeviceName" in instance) {
+						this.micomDevice = instance.DeviceName[0];
+						this.micomDeviceInfo = config.getDeviceInfo(this.micomDevice);
+						// マイコン情報への参照も同時に取得
+						if (this.micomDeviceInfo) {
+							const series = this.micomDeviceInfo.series;
+							this.micomInfo = config.getMicomInfo(series);
 						}
 					}
 				}

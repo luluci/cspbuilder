@@ -813,6 +813,10 @@ export class CSPBuilderPanel {
 											<td class="data">${buildMode.buildMode}</td>
 										</tr>
 										<tr>
+											<td class="property">Device</td>
+											<td class="data">${prjInfo.micomDevice}</td>
+										</tr>
+										<tr>
 											<td class="property">ROM Area</td>
 											<td class="data">${romArea}</td>
 										</tr>

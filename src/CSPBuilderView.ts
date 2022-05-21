@@ -651,7 +651,7 @@ export class CSPBuilderPanel {
 							<td class="proj-file">
 								${prjFile}
 							</td>
-							<td class="build-mode"><a href="#BuildMode_${buildModeId}">${buildMode.buildMode}</a></td>
+							<td class="build-mode"><a href="#BuildMode_${buildId}">${buildMode.buildMode}</a></td>
 							<td class="output-hex-file" id="output-hex-file_${buildId}" title="${outputHexTitle}">${buildMode.releaseHexFileName}</td>
 						</tr>
 					`;
@@ -741,7 +741,7 @@ export class CSPBuilderPanel {
 						}
 						// html生成
 						this._webViewHtmlProjFileInfo += `
-						<div class="build_mode_container" id="BuildMode_${buildModeId}">
+						<div class="build_mode_container" id="BuildMode_${buildId}">
 							<div class="build-tgt">
 								<input type="checkbox" class="build-tgt-checkbox" id="build-tgt-checkbox_detail_${buildId}" data-prj_id="${prjId}" data-buildmode_id="${buildModeId}" ${checked}>
 							</div>

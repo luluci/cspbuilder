@@ -1,191 +1,188 @@
 {
-	"name": "cspbuilder",
-	"publisher": "hoge",
-	"displayName": "CS+Builder",
-	"description": "",
-	"version": "0.0.1",
-	"engines": {
-		"vscode": "^1.55.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onView:cspbuilder.cspbuilderView",
-		"onCommand:cspbuilder.start",
-		"onCommand:cspbuilder.launch"
-	],
-	"main": "./dist/extension.js",
-	"contributes": {
-		"configuration": [
-			{
-				"title": "CS+ Builder",
-				"properties": {
-					"cspBuilder.BuildMode.DefaultDeactive": {
-						"type": "string",
-						"default": "DefaultBuild",
-						"description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
-					},
-					"cspBuilder.Release.ReleaseNoteFileName": {
-						"type": "string",
-						"default": "ReleaseNote",
-						"description": "リリースノートファイル名を指定"
-					},
-					"cspBuilder.Release.BuildModeReleaseName": {
-						"type": "object",
-						"description": "ビルドモード毎のリリース時ファイル名を指定",
-						"default": {
-							"DefaultBuild": "default",
-							"ReleaseBuild": "release"
-						},
-						"properties": {
-							"DefaultBuild": {
-								"type": "string"
-							},
-							"ReleaseBuild": {
-								"type": "string"
-							}
-						}
-					},
-					"cspBuilder.path.CC.CSPlus": {
-						"type": "string",
-						"default": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\CubeSuite+.exe",
-						"description": "[CS+ for CC] CubeSuite+.exe へのパスを設定"
-					},
-					"cspBuilder.path.CC.RTOS.dir": {
-						"type": "object",
-						"description": "[CS+ for CC] RTOSインストールディレクトリへのパスを設定",
-						"default": {
-							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4",
-							"RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4"
-						},
-						"properties": {
-							"RL78": {
-								"type": "string"
-							},
-							"RX": {
-								"type": "string"
-							}
-						}
-					},
-					"cspBuilder.path.CC.RTOS.Configurator": {
-						"type": "object",
-						"description": "[CS+ for CC] RTOSコンフィグレータ へのパスを設定",
-						"default": {
-							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4\\bin\\cf78v4.exe",
-							"RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4\\bin600\\cfg600.exe"
-						},
-						"properties": {
-							"RL78": {
-								"type": "string"
-							},
-							"RX": {
-								"type": "string"
-							}
-						}
-					},
-					"cspBuilder.path.CC.Devicefile": {
-						"type": "object",
-						"description": "[CS+ for CC] デバイスファイルフォルダへのパスを設定",
-						"default": {
-							"RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\Device\\RL78\\Devicefile"
-						},
-						"properties": {
-							"RL78": {
-								"type": "string"
-							}
-						}
-					},
-					"cspBuilder.Micom.RL78": {
-						"type": "object",
-						"default": {
-							"R5F101SL": "1"
-						},
-						"properties": {
-							"R5F101SL": {
-								"type": "string"
-							}
-						}
-					},
-					"cspBuilder.Micom.RX": {
-						"type": "object",
-						"default": {
-							"R5F572TFAxFP": "1"
-						},
-						"properties": {
-							"R5F572TFAxFP": {
-								"type": "string"
-							}
-						}
-					},
-					"cspBuilder.Micom.ROMArea": {
-						"type": "object",
-						"default": {
-							"R5F101SL": "0000:7FFF"
-						},
-						"properties": {
-							"R5F101SL": {
-								"type": "string"
-							}
-						}
-					},
-					"cspBuilder.Micom.blank": {
-						"type": "object",
-						"default": {
-							"RL78": "FF",
-							"RX": "FF"
-						},
-						"properties": {
-							"RL78": {
-								"type": "string"
-							},
-							"RX": {
-								"type": "string"
-							}
-						}
-					}
-				}
-			}
-		],
-		"commands": [
-			{
-				"command": "cspbuilder.start",
-				"title": "Start CS+Builder"
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run package",
-		"compile": "webpack",
-		"watch": "webpack --watch",
-		"package": "webpack --mode production --devtool hidden-source-map",
-		"test-compile": "tsc -p ./",
-		"test-watch": "tsc -watch -p ./",
-		"pretest": "npm run test-compile && npm run lint",
-		"lint": "eslint src --ext ts",
-		"test": "node ./out/test/runTest.js"
-	},
-	"devDependencies": {
-		"@types/glob": "^7.1.3",
-		"@types/mocha": "^8.0.4",
-		"@types/node": "^12.11.7",
-		"@types/supports-color": "^8.1.0",
-		"@types/vscode": "^1.55.0",
-		"@types/xml2js": "^0.4.8",
-		"@typescript-eslint/eslint-plugin": "^4.14.1",
-		"@typescript-eslint/parser": "^4.14.1",
-		"eslint": "^7.19.0",
-		"glob": "^7.1.6",
-		"iconv-lite": "^0.6.2",
-		"mocha": "^8.2.1",
-		"ts-loader": "^8.0.14",
-		"typescript": "^4.1.3",
-		"vscode-test": "^1.5.0",
-		"webpack": "^5.19.0",
-		"webpack-cli": "^4.4.0"
-	},
-	"dependencies": {
-		"xlsx": "^0.17.0",
-		"xml2js": "^0.4.23"
-	}
+  "name": "cspbuilder",
+  "publisher": "hoge",
+  "displayName": "CS+Builder",
+  "description": "CS+Builder",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:cspbuilder.cspbuilderView",
+    "onCommand:cspbuilder.start",
+    "onCommand:cspbuilder.launch"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": [
+      {
+        "title": "CS+ Builder",
+        "properties": {
+          "cspBuilder.BuildMode.DefaultDeactive": {
+            "type": "string",
+            "default": "DefaultBuild",
+            "description": "CS+Builder起動時にデフォルトでRELEASE対象から外す"
+          },
+          "cspBuilder.Release.ReleaseNoteFileName": {
+            "type": "string",
+            "default": "ReleaseNote",
+            "description": "リリースノートファイル名を指定"
+          },
+          "cspBuilder.Release.BuildModeReleaseName": {
+            "type": "object",
+            "description": "ビルドモード毎のリリース時ファイル名を指定",
+            "default": {
+              "DefaultBuild": "default",
+              "ReleaseBuild": "release"
+            },
+            "properties": {
+              "DefaultBuild": {
+                "type": "string"
+              },
+              "ReleaseBuild": {
+                "type": "string"
+              }
+            }
+          },
+          "cspBuilder.path.CC.CSPlus": {
+            "type": "string",
+            "default": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\CubeSuite+.exe",
+            "description": "[CS+ for CC] CubeSuite+.exe へのパスを設定"
+          },
+          "cspBuilder.path.CC.RTOS.dir": {
+            "type": "object",
+            "description": "[CS+ for CC] RTOSインストールディレクトリへのパスを設定",
+            "default": {
+              "RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4",
+              "RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4"
+            },
+            "properties": {
+              "RL78": {
+                "type": "string"
+              },
+              "RX": {
+                "type": "string"
+              }
+            }
+          },
+          "cspBuilder.path.CC.RTOS.Configurator": {
+            "type": "object",
+            "description": "[CS+ for CC] RTOSコンフィグレータ へのパスを設定",
+            "default": {
+              "RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI78V4\\bin\\cf78v4.exe",
+              "RX": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\RI600V4\\bin600\\cfg600.exe"
+            },
+            "properties": {
+              "RL78": {
+                "type": "string"
+              },
+              "RX": {
+                "type": "string"
+              }
+            }
+          },
+          "cspBuilder.path.CC.Devicefile": {
+            "type": "object",
+            "description": "[CS+ for CC] デバイスファイルフォルダへのパスを設定",
+            "default": {
+              "RL78": "C:\\Program Files (x86)\\Renesas Electronics\\CS+\\CC\\Device\\RL78\\Devicefile"
+            },
+            "properties": {
+              "RL78": {
+                "type": "string"
+              }
+            }
+          },
+          "cspBuilder.Micom.RL78": {
+            "type": "object",
+            "default": {
+              "R5F101SL": "1"
+            },
+            "properties": {
+              "R5F101SL": {
+                "type": "string"
+              }
+            }
+          },
+          "cspBuilder.Micom.RX": {
+            "type": "object",
+            "default": {
+              "R5F572TFAxFP": "1"
+            },
+            "properties": {
+              "R5F572TFAxFP": {
+                "type": "string"
+              }
+            }
+          },
+          "cspBuilder.Micom.ROMArea": {
+            "type": "object",
+            "default": {
+              "R5F101SL": "0000:7FFF"
+            },
+            "properties": {
+              "R5F101SL": {
+                "type": "string"
+              }
+            }
+          },
+          "cspBuilder.Micom.blank": {
+            "type": "object",
+            "default": {
+              "RL78": "FF",
+              "RX": "FF"
+            },
+            "properties": {
+              "RL78": {
+                "type": "string"
+              },
+              "RX": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "cspbuilder.start",
+        "title": "Start CS+Builder"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@types/xml2js": "^0.4.14",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.54.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.6.3",
+    "xlsx": "^0.17.0",
+    "xml2js": "^0.6.2"
+  }
 }
